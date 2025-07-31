@@ -1,0 +1,45 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '../views/HomeView.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView
+    },
+    {
+      path: '/test-cases',
+      name: 'test-cases',
+      component: () => import('../views/TestCasesView.vue')
+    },
+    {
+      path: '/executions',
+      name: 'executions',
+      component: () => import('../views/ExecutionsView.vue')
+    },
+    {
+      path: '/test-cases/:testCaseId/executions',
+      name: 'test-case-executions',
+      component: () => import('../views/ExecutionsView.vue')
+    },
+    {
+      path: '/statistics',
+      name: 'statistics',
+      component: () => import('../views/StatisticsView.vue')
+    },
+    {
+      path: '/executions/:executionId',
+      name: 'execution-detail',
+      component: () => import('../views/ExecutionDetailView.vue')
+    },
+    {
+      path: '/model-settings',
+      name: 'model-settings',
+      component: () => import('../views/ModelSettingsView.vue')
+    }
+  ]
+})
+
+export default router 

@@ -1,0 +1,32 @@
+{
+  "name": "autotest-fullstack",
+  "version": "1.0.0",
+  "description": "AutoTest with Vue UI - Web自动化测试工具",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && uv run run.py",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "npm install && cd frontend && npm install",
+    "start": "cd backend && python run.py",
+    "setup": "npm run install:all && cd backend && playwright install chromium"
+  },
+  "keywords": [
+    "autotest",
+    "vue",
+    "python",
+    "fastapi",
+    "playwright",
+    "automation"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+} 
