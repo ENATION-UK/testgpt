@@ -103,10 +103,22 @@ def demo_model_settings():
     # 5. 显示配置文件内容
     print("\n5️⃣ 查看配置文件...")
     try:
-        with open("backend/src/model_config.json", "r", encoding="utf-8") as f:
-            config_content = json.load(f)
-        print(f"✅ 配置文件内容:")
-        print(json.dumps(config_content, indent=2, ensure_ascii=False))
+        # 使用ConfigManager获取配置文件路径
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), "backend", "src"))
+        from autotest.config_manager import ConfigManager
+        
+        config_manager = ConfigManager()
+        config_path = config_manager.get_model_config_path()
+        
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_content = json.load(f)
+            print(f"✅ 配置文件内容:")
+            print(json.dumps(config_content, indent=2, ensure_ascii=False))
+        else:
+            print("⚠️  配置文件不存在，使用默认配置")
     except Exception as e:
         print(f"❌ 读取配置文件失败: {e}")
     

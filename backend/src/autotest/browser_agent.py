@@ -63,7 +63,9 @@ class BrowserAgent:
     def _load_config(self) -> dict:
         """从配置文件加载模型配置"""
         try:
-            config_path = Path("model_config.json")
+            from .config_manager import ConfigManager
+            config_manager = ConfigManager()
+            config_path = config_manager.get_model_config_path()
             if config_path.exists():
                 with open(config_path, "r", encoding="utf-8") as f:
                     return json.load(f)

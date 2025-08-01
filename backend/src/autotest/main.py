@@ -23,6 +23,7 @@ from .database import (
     init_db, SessionLocal
 )
 from .test_executor import TestExecutor, execute_single_test, execute_multiple_tests
+from .config_manager import ConfigManager
 
 # 创建FastAPI应用实例
 app = FastAPI(
@@ -356,7 +357,8 @@ async def import_excel_file(
 def _load_model_config() -> dict:
     """加载模型配置"""
     try:
-        config_path = Path("model_config.json")
+        config_manager = ConfigManager()
+        config_path = config_manager.get_model_config_path()
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
@@ -700,7 +702,8 @@ async def get_test_statistics(db: Session = Depends(get_db)):
 async def get_model_config():
     """获取当前模型配置"""
     try:
-        config_path = Path("model_config.json")
+        config_manager = ConfigManager()
+        config_path = config_manager.get_model_config_path()
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
@@ -729,7 +732,8 @@ async def get_model_config():
 async def update_model_config(config: ModelConfig):
     """更新模型配置"""
     try:
-        config_path = Path("model_config.json")
+        config_manager = ConfigManager()
+        config_path = config_manager.get_model_config_path()
         
         # 保存配置到文件
         config_data = config.dict()
