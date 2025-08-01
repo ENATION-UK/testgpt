@@ -33,6 +33,10 @@
               <el-icon><Setting /></el-icon>
               模型设置
             </el-menu-item>
+            <el-menu-item index="/prompt-settings">
+              <el-icon><ChatDotRound /></el-icon>
+              提示词设置
+            </el-menu-item>
           </el-menu>
         </div>
       </el-header>
@@ -49,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { Monitor, House, Document, VideoPlay, TrendCharts, Setting } from '@element-plus/icons-vue'
+import { Monitor, House, Document, VideoPlay, TrendCharts, Setting, ChatDotRound } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

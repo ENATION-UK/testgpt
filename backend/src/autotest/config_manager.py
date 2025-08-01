@@ -37,3 +37,7 @@ class ConfigManager:
     def get_model_config_path(self) -> Path:
         """获取模型配置文件路径"""
         return self.config_dir / "model_config.json"
+    
+    def get_prompt_config_path(self) -> Path:
+        """获取提示词配置文件路径"""
+        return self.config_dir / "prompt_config.json"

@@ -165,6 +165,16 @@ class ModelConfigResponse(BaseModel):
     max_tokens: Optional[int] = None
     is_valid: bool = Field(description="配置是否有效")
 
+# 提示词配置相关模型
+class PromptConfig(BaseModel):
+    """提示词配置"""
+    custom_prompt: str = Field(default="", description="自定义提示词")
+
+class PromptConfigResponse(BaseModel):
+    """提示词配置响应"""
+    custom_prompt: str
+    is_valid: bool = Field(description="配置是否有效")
+
 # ==================== API端点 ====================
 
 @app.get("/")
@@ -776,6 +786,55 @@ async def test_model_config(config: ModelConfig):
             "success": False,
             "message": f"模型配置测试失败: {str(e)}"
         }
+
+# ==================== 提示词配置 ====================
+
+@app.get("/prompt-config", response_model=PromptConfigResponse)
+async def get_prompt_config():
+    """获取当前提示词配置"""
+    try:
+        config_manager = ConfigManager()
+        config_path = config_manager.get_prompt_config_path()
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            # 默认配置
+            config = {
+                "custom_prompt": ""
+            }
+        
+        # 验证配置有效性
+        is_valid = True  # 提示词可以为空
+        
+        return PromptConfigResponse(
+            **config,
+            is_valid=is_valid
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取提示词配置失败: {str(e)}")
+
+@app.put("/prompt-config", response_model=PromptConfigResponse)
+async def update_prompt_config(config: PromptConfig):
+    """更新提示词配置"""
+    try:
+        config_manager = ConfigManager()
+        config_path = config_manager.get_prompt_config_path()
+        
+        # 保存配置到文件
+        config_data = config.dict()
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=2)
+        
+        # 验证配置有效性
+        is_valid = True  # 提示词可以为空
+        
+        return PromptConfigResponse(
+            **config_data,
+            is_valid=is_valid
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新提示词配置失败: {str(e)}")
 
 # ==================== 后台任务 ====================
 

@@ -109,4 +109,13 @@ export interface ModelConfigResponse extends ModelConfig {
 export interface TestConfigResult {
   success: boolean
   message: string
+}
+
+// 提示词配置相关类型
+export interface PromptConfig {
+  custom_prompt: string
+}
+
+export interface PromptConfigResponse extends PromptConfig {
+  is_valid: boolean
 } 

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult } from '@/types/api'
+import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse } from '@/types/api'
 
 const api = axios.create({
   baseURL: '/api',
@@ -89,6 +89,15 @@ export const modelConfigApi = {
   
   // 测试模型配置
   testConfig: (config: ModelConfig) => api.post<TestConfigResult>('/model-config/test', config) as unknown as Promise<TestConfigResult>
+}
+
+// 提示词配置相关API
+export const promptConfigApi = {
+  // 获取提示词配置
+  getConfig: () => api.get<PromptConfigResponse>('/prompt-config') as unknown as Promise<PromptConfigResponse>,
+  
+  // 更新提示词配置
+  updateConfig: (config: PromptConfig) => api.put<PromptConfigResponse>('/prompt-config', config) as unknown as Promise<PromptConfigResponse>
 }
 
 export default api 

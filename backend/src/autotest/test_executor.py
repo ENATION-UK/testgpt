@@ -261,32 +261,37 @@ class TestExecutor:
         }
     
     async def _run_browser_test(self, test_case: TestCase, execution: TestExecution, headless: bool) -> Dict[str, Any]:
-        """
-        运行浏览器测试
+        """运行浏览器测试"""
+        from playwright.async_api import async_playwright
         
-        Args:
-            test_case: 测试用例
-            execution: 执行记录
-            headless: 是否无头模式
-            
-        Returns:
-            测试结果
-        """
-        async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(
+        async with async_playwright() as p:
+            # 启动浏览器
+            browser = await p.chromium.launch(
                 headless=headless,
                 args=[
                     '--no-sandbox',
+                    '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
                     '--disable-gpu',
-                    '--disable-web-security',
                     '--disable-features=VizDisplayCompositor'
                 ]
             )
-            context = await browser.new_context()
-            page = await context.new_page()
             
             try:
+                # 创建新页面
+                page = await browser.new_page()
+                
+                # 加载自定义提示词
+                custom_prompt = self._load_custom_prompt()
+                
+                # 合并默认提示词和自定义提示词
+                final_prompt = TEST_SYSTEM_PROMPT
+                if custom_prompt:
+                    final_prompt = f"{TEST_SYSTEM_PROMPT}\n\n{custom_prompt}"
+                
                 # 使用Browser Use Agent
                 from browser_use import Agent
                 
@@ -297,7 +302,7 @@ class TestExecutor:
                     use_vision=True,
                     save_conversation_path=f'/tmp/test_execution_{execution.id}',
                     controller=self.test_controller,
-                    extend_system_message=TEST_SYSTEM_PROMPT,
+                    extend_system_message=final_prompt,
                 )
                 
                 self.logger.info(f"开始执行任务: {test_case.task_content[:100]}...")
@@ -347,6 +352,22 @@ class TestExecutor:
             finally:
                 await browser.close()
     
+    def _load_custom_prompt(self) -> str:
+        """加载自定义提示词"""
+        try:
+            from .config_manager import ConfigManager
+            config_manager = ConfigManager()
+            config_path = config_manager.get_prompt_config_path()
+            
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    return config.get("custom_prompt", "")
+            return ""
+        except Exception as e:
+            self.logger.warning(f"加载自定义提示词失败: {e}")
+            return ""
+
     def _save_screenshots(self, history, execution_id: int) -> List[str]:
         """保存截图到指定目录"""
         screenshots = history.screenshots()

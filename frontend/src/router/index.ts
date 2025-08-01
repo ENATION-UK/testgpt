@@ -38,6 +38,11 @@ const router = createRouter({
       path: '/model-settings',
       name: 'model-settings',
       component: () => import('../views/ModelSettingsView.vue')
+    },
+    {
+      path: '/prompt-settings',
+      name: 'prompt-settings',
+      component: () => import('../views/PromptSettingsView.vue')
     }
   ]
 })
