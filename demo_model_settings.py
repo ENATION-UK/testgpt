@@ -103,7 +103,7 @@ def demo_model_settings():
     # 5. 显示配置文件内容
     print("\n5️⃣ 查看配置文件...")
     try:
-        with open("backend/model_config.json", "r", encoding="utf-8") as f:
+        with open("backend/src/model_config.json", "r", encoding="utf-8") as f:
             config_content = json.load(f)
         print(f"✅ 配置文件内容:")
         print(json.dumps(config_content, indent=2, ensure_ascii=False))

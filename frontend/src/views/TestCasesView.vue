@@ -2,10 +2,16 @@
   <div class="test-cases">
     <div class="page-header">
       <h2>测试用例管理</h2>
-      <el-button type="primary" @click="showCreateDialog = true">
-        <el-icon><Plus /></el-icon>
-        创建测试用例
-      </el-button>
+      <div class="header-actions">
+        <el-button type="success" @click="showImportDialog = true">
+          <el-icon><Upload /></el-icon>
+          导入Excel
+        </el-button>
+        <el-button type="primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          创建测试用例
+        </el-button>
+      </div>
     </div>
 
     <el-card>
@@ -98,6 +104,12 @@
       :test-case="selectedTestCase"
       @updated="handleTestCaseUpdated"
     />
+
+    <!-- 导入Excel对话框 -->
+    <ImportExcelDialog
+      v-model="showImportDialog"
+      @imported="handleTestCaseImported"
+    />
   </div>
 </template>
 
@@ -105,12 +117,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Upload } from '@element-plus/icons-vue'
 import { testCaseApi, testExecutionApi } from '@/services/api'
 import type { TestCase } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
 import ViewTestCaseDialog from '@/components/ViewTestCaseDialog.vue'
 import EditTestCaseDialog from '@/components/EditTestCaseDialog.vue'
+import ImportExcelDialog from '@/components/ImportExcelDialog.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -118,6 +131,7 @@ const testCases = ref<TestCase[]>([])
 const showCreateDialog = ref(false)
 const showViewDialog = ref(false)
 const showEditDialog = ref(false)
+const showImportDialog = ref(false) // Added for import dialog
 const selectedTestCase = ref<TestCase | null>(null)
 
 // 分页相关
@@ -197,6 +211,10 @@ const handleEditFromView = (testCase: TestCase) => {
 }
 
 const handleTestCaseUpdated = () => {
+  loadTestCases()
+}
+
+const handleTestCaseImported = () => {
   loadTestCases()
 }
 
@@ -301,6 +319,11 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   color: #303133;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px; /* Space between buttons */
 }
 
 .pagination-container {

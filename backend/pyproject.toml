@@ -15,6 +15,9 @@ dependencies = [
     "socksio>=1.0.0",
     "sqlalchemy>=2.0.42",
     "uvicorn[standard]>=0.24.0",
+    "openpyxl>=3.1.0",
+    "pandas>=2.0.0",
+    "langchain-core>=0.1.0",
 ]
 requires-python = ">=3.11"
 

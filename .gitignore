@@ -49,7 +49,7 @@ logs/
 
 # Model configuration (contains sensitive API keys)
 model_config.json
-backend/model_config.json
+backend/src/model_config.json
 
 # Screenshots
 test_screenshots/
