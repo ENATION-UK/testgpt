@@ -73,6 +73,23 @@ export const testExecutionApi = {
   getSteps: (executionId: number) => api.get(`/test-executions/${executionId}/steps`) as unknown as Promise<any>
 }
 
+// 批量执行任务相关API
+export const batchExecutionApi = {
+  // 创建批量执行任务
+  create: (testCaseIds: number[], headless: boolean = true) =>
+    api.post<{ success: boolean; batch_execution_id: number; message: string }>('/test-executions/batch-executions', { test_case_ids: testCaseIds, headless }) as unknown as Promise<{ success: boolean; batch_execution_id: number; message: string }>,
+  
+  // 获取批量执行任务列表
+  getList: (params?: { skip?: number; limit?: number; status?: string }) => 
+    api.get<any[]>('/test-executions/batch-executions', { params }) as unknown as Promise<any[]>,
+  
+  // 获取特定批量执行任务的详细信息
+  getById: (id: number) => api.get<any>(`/test-executions/batch-executions/${id}`) as unknown as Promise<any>,
+  
+  // 获取批量执行任务的状态
+  getStatus: (id: number) => api.get<any>(`/test-executions/batch-executions/${id}/status`) as unknown as Promise<any>
+}
+
 // 统计信息API
 export const statisticsApi = {
   // 获取统计信息
@@ -100,4 +117,4 @@ export const promptConfigApi = {
   updateConfig: (config: PromptConfig) => api.put<PromptConfigResponse>('/prompt-config', config) as unknown as Promise<PromptConfigResponse>
 }
 
-export default api 
+export default api

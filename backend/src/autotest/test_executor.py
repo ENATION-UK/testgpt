@@ -16,7 +16,7 @@ from browser_use.llm import ChatDeepSeek
 from browser_use.controller.service import Controller
 from playwright.async_api import async_playwright
 
-from .database import TestCase, TestExecution, TestStep, SessionLocal
+from .database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
 
 # 测试结果模型
 class TestStepResult(BaseModel):
@@ -423,6 +423,275 @@ class TestExecutor:
         
         return saved_paths
 
+class BatchTestExecutor:
+    """批量测试执行器"""
+    
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        初始化批量测试执行器
+        
+        Args:
+            api_key: DeepSeek API密钥
+        """
+        self.test_executor = TestExecutor(api_key)
+        self.logger = logging.getLogger(__name__)
+    
+    async def execute_batch_test(self, test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务") -> Dict[str, Any]:
+        """
+        执行批量测试用例
+        
+        Args:
+            test_case_ids: 测试用例ID列表
+            headless: 是否无头模式
+            batch_name: 批量执行任务名称
+            
+        Returns:
+            执行结果
+        """
+        db = SessionLocal()
+        try:
+            # 创建批量执行任务记录
+            batch_execution = BatchExecution(
+                name=batch_name,
+                status="running",
+                total_count=len(test_case_ids),
+                pending_count=len(test_case_ids),
+                started_at=datetime.utcnow()
+            )
+            db.add(batch_execution)
+            db.commit()
+            db.refresh(batch_execution)
+            
+            # 创建批量执行任务中的测试用例记录
+            batch_test_cases = []
+            for test_case_id in test_case_ids:
+                batch_test_case = BatchExecutionTestCase(
+                    batch_execution_id=batch_execution.id,
+                    test_case_id=test_case_id,
+                    status="pending"
+                )
+                db.add(batch_test_case)
+                batch_test_cases.append(batch_test_case)
+            
+            db.commit()
+            
+            self.logger.info(f"开始批量执行任务: {batch_name} (ID: {batch_execution.id})")
+            
+            # 并发执行测试用例
+            tasks = []
+            for batch_test_case in batch_test_cases:
+                task = self._execute_single_test_in_batch(batch_test_case, headless, db)
+                tasks.append(task)
+            
+            # 等待所有任务完成
+            await asyncio.gather(*tasks)
+            
+            # 更新批量执行任务状态为完成
+            batch_execution.status = "completed"
+            batch_execution.completed_at = datetime.utcnow()
+            batch_execution.updated_at = datetime.utcnow()
+            
+            # 统计执行结果
+            success_count = db.query(BatchExecutionTestCase).filter(
+                BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                BatchExecutionTestCase.status == "completed"
+            ).count()
+            
+            failed_count = db.query(BatchExecutionTestCase).filter(
+                BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                BatchExecutionTestCase.status == "failed"
+            ).count()
+            
+            batch_execution.success_count = success_count
+            batch_execution.failed_count = failed_count
+            batch_execution.running_count = 0
+            batch_execution.pending_count = 0
+            
+            db.commit()
+            
+            return {
+                "success": True,
+                "batch_execution_id": batch_execution.id,
+                "batch_name": batch_execution.name,
+                "total_count": batch_execution.total_count,
+                "success_count": batch_execution.success_count,
+                "failed_count": batch_execution.failed_count,
+                "status": batch_execution.status,
+                "started_at": batch_execution.started_at.isoformat(),
+                "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None
+            }
+            
+        except Exception as e:
+            self.logger.error(f"批量执行测试用例失败: {e}")
+            if 'batch_execution' in locals():
+                batch_execution.status = "failed"
+                batch_execution.error_message = str(e)
+                batch_execution.completed_at = datetime.utcnow()
+                batch_execution.updated_at = datetime.utcnow()
+                db.commit()
+            
+            return {
+                "success": False,
+                "error": str(e)
+            }
+        finally:
+            db.close()
+    
+    async def _execute_single_test_in_batch(self, batch_test_case: BatchExecutionTestCase, headless: bool, db):
+        """
+        在批量执行中执行单个测试用例
+        
+        Args:
+            batch_test_case: 批量执行任务中的测试用例记录
+            headless: 是否无头模式
+            db: 数据库会话
+        """
+        try:
+            # 更新状态为运行中
+            batch_test_case.status = "running"
+            batch_test_case.started_at = datetime.utcnow()
+            batch_test_case.updated_at = datetime.utcnow()
+            db.commit()
+            
+            # 执行测试用例
+            result = await self.test_executor.execute_test_case(batch_test_case.test_case_id, headless)
+            
+            # 更新执行记录ID
+            if "execution_id" in result:
+                batch_test_case.execution_id = result["execution_id"]
+            
+            # 更新状态
+            if result["success"]:
+                batch_test_case.status = "completed"
+            else:
+                batch_test_case.status = "failed"
+            
+            batch_test_case.completed_at = datetime.utcnow()
+            batch_test_case.updated_at = datetime.utcnow()
+            db.commit()
+            
+            # 更新批量执行任务的统计数据
+            batch_execution = db.query(BatchExecution).filter(
+                BatchExecution.id == batch_test_case.batch_execution_id
+            ).first()
+            
+            if batch_execution:
+                # 重新计算统计数据
+                completed_count = db.query(BatchExecutionTestCase).filter(
+                    BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                    BatchExecutionTestCase.status.in_(["completed", "failed"])
+                ).count()
+                
+                running_count = db.query(BatchExecutionTestCase).filter(
+                    BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                    BatchExecutionTestCase.status == "running"
+                ).count()
+                
+                pending_count = db.query(BatchExecutionTestCase).filter(
+                    BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                    BatchExecutionTestCase.status == "pending"
+                ).count()
+                
+                # 更新批量执行任务状态
+                batch_execution.success_count = completed_count - db.query(BatchExecutionTestCase).filter(
+                    BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                    BatchExecutionTestCase.status == "failed"
+                ).count()
+                
+                batch_execution.failed_count = db.query(BatchExecutionTestCase).filter(
+                    BatchExecutionTestCase.batch_execution_id == batch_execution.id,
+                    BatchExecutionTestCase.status == "failed"
+                ).count()
+                
+                batch_execution.running_count = running_count
+                batch_execution.pending_count = pending_count
+                batch_execution.updated_at = datetime.utcnow()
+                db.commit()
+                
+        except Exception as e:
+            self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 失败: {e}")
+            batch_test_case.status = "failed"
+            batch_test_case.error_message = str(e)
+            batch_test_case.completed_at = datetime.utcnow()
+            batch_test_case.updated_at = datetime.utcnow()
+            db.commit()
+    
+    def get_batch_execution_status(self, batch_execution_id: int) -> Dict[str, Any]:
+        """
+        获取批量执行任务的状态
+        
+        Args:
+            batch_execution_id: 批量执行任务ID
+            
+        Returns:
+            批量执行任务状态
+        """
+        db = SessionLocal()
+        try:
+            # 获取批量执行任务
+            batch_execution = db.query(BatchExecution).filter(
+                BatchExecution.id == batch_execution_id
+            ).first()
+            
+            if not batch_execution:
+                return {
+                    "success": False,
+                    "error": f"批量执行任务 {batch_execution_id} 不存在"
+                }
+            
+            # 获取批量执行任务中的测试用例
+            batch_test_cases = db.query(BatchExecutionTestCase).filter(
+                BatchExecutionTestCase.batch_execution_id == batch_execution_id
+            ).all()
+            
+            test_case_details = []
+            for btc in batch_test_cases:
+                # 获取测试用例信息
+                test_case = db.query(TestCase).filter(
+                    TestCase.id == btc.test_case_id
+                ).first()
+                
+                # 获取执行记录信息
+                execution = None
+                if btc.execution_id:
+                    execution = db.query(TestExecution).filter(
+                        TestExecution.id == btc.execution_id
+                    ).first()
+                
+                test_case_details.append({
+                    "id": btc.id,
+                    "test_case_id": btc.test_case_id,
+                    "test_case_name": test_case.name if test_case else "未知",
+                    "execution_id": btc.execution_id,
+                    "status": btc.status,
+                    "overall_status": execution.overall_status if execution else None,
+                    "started_at": btc.started_at.isoformat() if btc.started_at else None,
+                    "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
+                    "error_message": btc.error_message
+                })
+            
+            return {
+                "success": True,
+                "batch_execution": {
+                    "id": batch_execution.id,
+                    "name": batch_execution.name,
+                    "status": batch_execution.status,
+                    "total_count": batch_execution.total_count,
+                    "success_count": batch_execution.success_count,
+                    "failed_count": batch_execution.failed_count,
+                    "running_count": batch_execution.running_count,
+                    "pending_count": batch_execution.pending_count,
+                    "total_duration": batch_execution.total_duration,
+                    "started_at": batch_execution.started_at.isoformat() if batch_execution.started_at else None,
+                    "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
+                    "created_at": batch_execution.created_at.isoformat() if batch_execution.created_at else None,
+                    "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None,
+                    "test_cases": test_case_details
+                }
+            }
+        finally:
+            db.close()
+
 # 便捷函数
 async def execute_single_test(test_case_id: int, headless: bool = False) -> Dict[str, Any]:
     """执行单个测试用例的便捷函数"""
@@ -432,4 +701,9 @@ async def execute_single_test(test_case_id: int, headless: bool = False) -> Dict
 async def execute_multiple_tests(test_case_ids: List[int], headless: bool = False) -> Dict[str, Any]:
     """批量执行测试用例的便捷函数"""
     executor = TestExecutor()
-    return await executor.execute_test_suite(test_case_ids, headless) 
+    return await executor.execute_test_suite(test_case_ids, headless)
+
+async def execute_batch_tests(test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务") -> Dict[str, Any]:
+    """批量执行测试用例的便捷函数（带进度跟踪）"""
+    executor = BatchTestExecutor()
+    return await executor.execute_batch_test(test_case_ids, headless, batch_name)

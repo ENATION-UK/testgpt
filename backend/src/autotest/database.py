@@ -109,6 +109,46 @@ class TestStep(Base):
     # 关联关系
     execution = relationship("TestExecution", back_populates="steps")
 
+# 批量执行任务模型
+class BatchExecution(Base):
+    __tablename__ = "batch_execution"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="主键ID")
+    name = Column(String(255), nullable=False, comment="批量执行任务名称")
+    status = Column(String(50), default="running", comment="执行状态: running, completed, failed, cancelled")
+    total_count = Column(Integer, default=0, comment="总测试用例数")
+    success_count = Column(Integer, default=0, comment="成功执行数")
+    failed_count = Column(Integer, default=0, comment="失败执行数")
+    running_count = Column(Integer, default=0, comment="正在执行数")
+    pending_count = Column(Integer, default=0, comment="待执行数")
+    total_duration = Column(Float, default=0.0, comment="总执行时间(秒)")
+    started_at = Column(DateTime, default=datetime.utcnow, comment="开始时间")
+    completed_at = Column(DateTime, comment="完成时间")
+    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    
+    # 关联关系
+    test_cases = relationship("BatchExecutionTestCase", back_populates="batch_execution")
+
+# 批量执行任务中的测试用例模型
+class BatchExecutionTestCase(Base):
+    __tablename__ = "batch_execution_test_case"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="主键ID")
+    batch_execution_id = Column(Integer, ForeignKey("batch_execution.id"), nullable=False, comment="批量执行任务ID")
+    test_case_id = Column(Integer, ForeignKey("test_case.id"), nullable=False, comment="测试用例ID")
+    execution_id = Column(Integer, ForeignKey("test_execution.id"), nullable=True, comment="执行记录ID")
+    status = Column(String(50), default="pending", comment="执行状态: pending, running, completed, failed")
+    started_at = Column(DateTime, comment="开始时间")
+    completed_at = Column(DateTime, comment="完成时间")
+    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    
+    # 关联关系
+    batch_execution = relationship("BatchExecution", back_populates="test_cases")
+    test_case = relationship("TestCase")
+    execution = relationship("TestExecution")
+
 # 测试套件模型
 class TestSuite(Base):
     __tablename__ = "test_suite"
@@ -247,4 +287,4 @@ if __name__ == "__main__":
     # 测试数据库连接
     if test_connection():
         # 初始化数据库
-        init_db() 
+        init_db()

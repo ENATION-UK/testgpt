@@ -11,6 +11,10 @@
           <el-icon><Plus /></el-icon>
           创建测试用例
         </el-button>
+        <el-button type="warning" @click="showBatchExecuteDialog = true">
+          <el-icon><Operation /></el-icon>
+          批量执行
+        </el-button>
       </div>
     </div>
 
@@ -19,7 +23,9 @@
         v-loading="loading"
         :data="testCases"
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="名称" min-width="200" />
         <el-table-column prop="category" label="分类" width="120" />
         <el-table-column prop="priority" label="优先级" width="100">
@@ -110,6 +116,47 @@
       v-model="showImportDialog"
       @imported="handleTestCaseImported"
     />
+
+    <!-- 批量执行对话框 -->
+    <el-dialog
+      v-model="showBatchExecuteDialog"
+      title="批量执行测试用例"
+      width="600px"
+    >
+      <el-form :model="batchExecuteForm" label-width="100px">
+        <el-form-item label="选择用例">
+          <el-select
+            v-model="batchExecuteForm.selectedTestCases"
+            multiple
+            filterable
+            placeholder="请选择要执行的测试用例"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="testCase in testCases"
+              :key="testCase.id"
+              :label="`${testCase.name} (${testCase.category || '未分类'})`"
+              :value="testCase.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="执行模式">
+          <el-radio-group v-model="batchExecuteForm.headless">
+            <el-radio :label="true">无头模式</el-radio>
+            <el-radio :label="false">有头模式</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showBatchExecuteDialog = false">取消</el-button>
+          <el-button type="primary" @click="handleBatchExecute" :loading="batchExecuting">
+            执行
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -117,8 +164,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, ArrowDown, Upload } from '@element-plus/icons-vue'
-import { testCaseApi, testExecutionApi } from '@/services/api'
+import { Plus, ArrowDown, Upload, Operation } from '@element-plus/icons-vue'
+import { testCaseApi, testExecutionApi, batchExecutionApi } from '@/services/api'
 import type { TestCase } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
 import ViewTestCaseDialog from '@/components/ViewTestCaseDialog.vue'
@@ -132,7 +179,15 @@ const showCreateDialog = ref(false)
 const showViewDialog = ref(false)
 const showEditDialog = ref(false)
 const showImportDialog = ref(false) // Added for import dialog
+const showBatchExecuteDialog = ref(false) // Added for batch execute dialog
 const selectedTestCase = ref<TestCase | null>(null)
+
+// 批量执行相关
+const batchExecuteForm = ref({
+  selectedTestCases: [] as number[],
+  headless: true
+})
+const batchExecuting = ref(false)
 
 // 分页相关
 const currentPage = ref(1)
@@ -256,6 +311,46 @@ const deleteTestCase = async (testCase: TestCase) => {
   }
 }
 
+const handleSelectionChange = (selection: TestCase[]) => {
+  // 更新批量执行表单中的选中测试用例
+  batchExecuteForm.value.selectedTestCases = selection.map(item => item.id)
+}
+
+const handleBatchExecute = async () => {
+  if (batchExecuteForm.value.selectedTestCases.length === 0) {
+    ElMessage.warning('请至少选择一个测试用例')
+    return
+  }
+  
+  batchExecuting.value = true
+  try {
+    // 调用批量执行API
+    const result = await batchExecutionApi.create(
+      batchExecuteForm.value.selectedTestCases,
+      batchExecuteForm.value.headless
+    )
+    
+    if (result.success) {
+      ElMessage.success('批量执行任务已创建')
+      showBatchExecuteDialog.value = false
+      // 重置表单
+      batchExecuteForm.value.selectedTestCases = []
+      
+      // 跳转到批量执行任务页面
+      router.push({
+        name: 'batch-executions',
+        params: { batchExecutionId: result.batch_execution_id.toString() }
+      })
+    } else {
+      ElMessage.error(result.message || '批量执行任务创建失败')
+    }
+  } catch (error) {
+    ElMessage.error('批量执行任务创建失败')
+  } finally {
+    batchExecuting.value = false
+  }
+}
+
 const getPriorityType = (priority: string): string => {
   const types = {
     low: 'info',
@@ -332,4 +427,10 @@ onMounted(() => {
   margin-top: 20px;
   padding: 20px 0;
 }
-</style> 
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+</style>

@@ -43,8 +43,13 @@ const router = createRouter({
       path: '/prompt-settings',
       name: 'prompt-settings',
       component: () => import('../views/PromptSettingsView.vue')
+    },
+    {
+      path: '/batch-executions',
+      name: 'batch-executions',
+      component: () => import('../views/BatchExecutionsView.vue')
     }
   ]
 })
 
-export default router 
+export default router
