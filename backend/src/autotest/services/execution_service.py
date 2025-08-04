@@ -194,37 +194,12 @@ class ExecutionService:
     async def _run_batch_execution_in_background(batch_execution_id: int, test_case_ids: List[int], headless: bool):
         """在后台运行批量执行任务"""
         try:
-            # 使用BatchTestExecutor执行批量测试
+            # 使用BatchTestExecutor执行批量测试，传递现有的batch_execution_id
             batch_executor = BatchTestExecutor()
-            result = await batch_executor.execute_batch_test(test_case_ids, headless)
+            result = await batch_executor.execute_batch_test(test_case_ids, headless, batch_execution_id=batch_execution_id)
             
-            # 更新批量执行任务状态
-            db = SessionLocal()
-            try:
-                batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
-                if batch_execution:
-                    batch_execution.status = "completed"
-                    batch_execution.completed_at = datetime.utcnow()
-                    batch_execution.updated_at = datetime.utcnow()
-                    db.commit()
-                    
-                    # 推送 WebSocket 更新
-                    await websocket_manager.broadcast_batch_update(
-                        batch_execution_id,
-                        {
-                            "status": batch_execution.status,
-                            "success_count": batch_execution.success_count,
-                            "failed_count": batch_execution.failed_count,
-                            "running_count": batch_execution.running_count,
-                            "pending_count": batch_execution.pending_count,
-                            "total_count": batch_execution.total_count,
-                            "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
-                            "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
-                        }
-                    )
-            finally:
-                db.close()
-                
+            # 注意：不需要在这里更新批量执行任务状态，因为BatchTestExecutor已经处理了
+            
         except Exception as e:
             # 更新批量执行任务为错误状态
             db = SessionLocal()

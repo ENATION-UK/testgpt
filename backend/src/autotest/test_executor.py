@@ -437,7 +437,7 @@ class BatchTestExecutor:
         self.test_executor = TestExecutor(api_key)
         self.logger = logging.getLogger(__name__)
     
-    async def execute_batch_test(self, test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务") -> Dict[str, Any]:
+    async def execute_batch_test(self, test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务", batch_execution_id: Optional[int] = None) -> Dict[str, Any]:
         """
         执行批量测试用例
         
@@ -445,38 +445,64 @@ class BatchTestExecutor:
             test_case_ids: 测试用例ID列表
             headless: 是否无头模式
             batch_name: 批量执行任务名称
+            batch_execution_id: 可选的批量执行任务ID，如果提供则使用现有的任务
             
         Returns:
             执行结果
         """
         db = SessionLocal()
         try:
-            # 创建批量执行任务记录
-            batch_execution = BatchExecution(
-                name=batch_name,
-                status="running",
-                total_count=len(test_case_ids),
-                pending_count=len(test_case_ids),
-                started_at=datetime.utcnow()
-            )
-            db.add(batch_execution)
-            db.commit()
-            db.refresh(batch_execution)
-            
-            # 创建批量执行任务中的测试用例记录
-            batch_test_cases = []
-            for test_case_id in test_case_ids:
-                batch_test_case = BatchExecutionTestCase(
-                    batch_execution_id=batch_execution.id,
-                    test_case_id=test_case_id,
-                    status="pending"
+            if batch_execution_id is not None:
+                # 使用现有的批量执行任务
+                batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
+                if not batch_execution:
+                    raise ValueError(f"批量执行任务 {batch_execution_id} 不存在")
+                
+                # 检查是否已经有测试用例记录
+                existing_test_cases = db.query(BatchExecutionTestCase).filter(
+                    BatchExecutionTestCase.batch_execution_id == batch_execution_id
+                ).all()
+                
+                if not existing_test_cases:
+                    # 创建批量执行任务中的测试用例记录
+                    batch_test_cases = []
+                    for test_case_id in test_case_ids:
+                        batch_test_case = BatchExecutionTestCase(
+                            batch_execution_id=batch_execution.id,
+                            test_case_id=test_case_id,
+                            status="pending"
+                        )
+                        db.add(batch_test_case)
+                        batch_test_cases.append(batch_test_case)
+                    db.commit()
+                else:
+                    batch_test_cases = existing_test_cases
+            else:
+                # 创建新的批量执行任务记录
+                batch_execution = BatchExecution(
+                    name=batch_name,
+                    status="running",
+                    total_count=len(test_case_ids),
+                    pending_count=len(test_case_ids),
+                    started_at=datetime.utcnow()
                 )
-                db.add(batch_test_case)
-                batch_test_cases.append(batch_test_case)
+                db.add(batch_execution)
+                db.commit()
+                db.refresh(batch_execution)
+                
+                # 创建批量执行任务中的测试用例记录
+                batch_test_cases = []
+                for test_case_id in test_case_ids:
+                    batch_test_case = BatchExecutionTestCase(
+                        batch_execution_id=batch_execution.id,
+                        test_case_id=test_case_id,
+                        status="pending"
+                    )
+                    db.add(batch_test_case)
+                    batch_test_cases.append(batch_test_case)
+                db.commit()
             
-            db.commit()
-            
-            self.logger.info(f"开始批量执行任务: {batch_name} (ID: {batch_execution.id})")
+            self.logger.info(f"开始批量执行任务: {batch_execution.name} (ID: {batch_execution.id})")
             
             # 并发执行测试用例
             tasks = []
@@ -538,17 +564,16 @@ class BatchTestExecutor:
             }
             
         except Exception as e:
-            self.logger.error(f"批量执行测试用例失败: {e}")
-            if 'batch_execution' in locals():
-                batch_execution.status = "failed"
-                batch_execution.completed_at = datetime.utcnow()
-                batch_execution.updated_at = datetime.utcnow()
-                db.commit()
-            
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            self.logger.error(f"批量执行任务失败: {e}")
+            # 如果使用了现有的批量执行任务，更新其状态为失败
+            if batch_execution_id is not None:
+                batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
+                if batch_execution:
+                    batch_execution.status = "failed"
+                    batch_execution.completed_at = datetime.utcnow()
+                    batch_execution.updated_at = datetime.utcnow()
+                    db.commit()
+            raise
         finally:
             db.close()
     
