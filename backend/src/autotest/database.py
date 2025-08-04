@@ -5,8 +5,15 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, Float, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
+
+# 设置时区为北京时间
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+def beijing_now():
+    """获取北京时间"""
+    return datetime.now(BEIJING_TZ)
 
 # 数据库连接配置
 # MySQL配置
@@ -56,8 +63,8 @@ class TestCase(Base):
     category = Column(String(100), comment="测试分类")
     tags = Column(JSON, comment="标签列表")
     expected_result = Column(Text, comment="预期结果")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
+    updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
     is_deleted = Column(Boolean, default=False, comment="是否删除")
     
     # 关联关系
@@ -82,9 +89,9 @@ class TestExecution(Base):
     error_message = Column(Text, comment="错误信息")
     browser_logs = Column(JSON, comment="浏览器日志")
     screenshots = Column(JSON, comment="截图路径列表")
-    started_at = Column(DateTime, default=datetime.utcnow, comment="开始时间")
+    started_at = Column(DateTime, default=beijing_now, comment="开始时间")
     completed_at = Column(DateTime, comment="完成时间")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
     
     # 关联关系
     test_case = relationship("TestCase", back_populates="executions")
@@ -103,7 +110,7 @@ class TestStep(Base):
     error_message = Column(Text, comment="错误信息")
     screenshot_path = Column(String(500), comment="截图路径")
     duration_seconds = Column(Float, comment="执行时间(秒)")
-    started_at = Column(DateTime, default=datetime.utcnow, comment="开始时间")
+    started_at = Column(DateTime, default=beijing_now, comment="开始时间")
     completed_at = Column(DateTime, comment="完成时间")
     
     # 关联关系
@@ -122,10 +129,10 @@ class BatchExecution(Base):
     running_count = Column(Integer, default=0, comment="正在执行数")
     pending_count = Column(Integer, default=0, comment="待执行数")
     total_duration = Column(Float, default=0.0, comment="总执行时间(秒)")
-    started_at = Column(DateTime, default=datetime.utcnow, comment="开始时间")
+    started_at = Column(DateTime, default=beijing_now, comment="开始时间")
     completed_at = Column(DateTime, comment="完成时间")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
+    updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
     
     # 关联关系
     test_cases = relationship("BatchExecutionTestCase", back_populates="batch_execution")
@@ -141,8 +148,8 @@ class BatchExecutionTestCase(Base):
     status = Column(String(50), default="pending", comment="执行状态: pending, running, completed, failed")
     started_at = Column(DateTime, comment="开始时间")
     completed_at = Column(DateTime, comment="完成时间")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
+    updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
     
     # 关联关系
     batch_execution = relationship("BatchExecution", back_populates="test_cases")
@@ -157,8 +164,8 @@ class TestSuite(Base):
     name = Column(String(255), nullable=False, comment="测试套件名称")
     description = Column(Text, comment="测试套件描述")
     status = Column(String(50), default="active", comment="状态")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
+    updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
     is_deleted = Column(Boolean, default=False, comment="是否删除")
 
 # 测试套件用例关联模型
@@ -169,7 +176,7 @@ class TestSuiteCase(Base):
     suite_id = Column(Integer, ForeignKey("test_suite.id"), nullable=False, comment="测试套件ID")
     test_case_id = Column(Integer, ForeignKey("test_case.id"), nullable=False, comment="测试用例ID")
     execution_order = Column(Integer, comment="执行顺序")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
 
 def get_db():
     """获取数据库会话"""

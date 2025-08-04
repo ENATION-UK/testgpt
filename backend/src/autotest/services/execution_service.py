@@ -4,9 +4,16 @@
 
 from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List
 import asyncio
+
+# 设置时区为北京时间
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+def beijing_now():
+    """获取北京时间"""
+    return datetime.now(BEIJING_TZ)
 
 from ..database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
 from ..models import TestExecutionRequest, TestExecutionResponse, BatchExecutionRequest, BatchExecutionResponse
@@ -34,9 +41,9 @@ class ExecutionService:
         # 创建执行记录
         execution = TestExecution(
             test_case_id=execution_request.test_case_id,
-            execution_name=f"{test_case.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
             status="running",
-            started_at=datetime.utcnow()
+            started_at=beijing_now()
         )
         db.add(execution)
         db.commit()
@@ -102,11 +109,11 @@ class ExecutionService:
         
         # 创建批量执行任务记录
         batch_execution = BatchExecution(
-            name=f"批量执行任务_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            name=f"批量执行任务_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
             status="running",
             total_count=len(batch_request.test_case_ids),
             pending_count=len(batch_request.test_case_ids),
-            started_at=datetime.utcnow()
+            started_at=beijing_now()
         )
         db.add(batch_execution)
         db.commit()
@@ -156,7 +163,7 @@ class ExecutionService:
                     execution.summary = result.get("summary", "")
                     execution.recommendations = result.get("recommendations", "")
                     execution.error_message = result.get("error_message", "")
-                    execution.completed_at = datetime.utcnow()
+                    execution.completed_at = beijing_now()
                     
                     # 更新统计信息
                     execution.total_steps = len(result.get("test_steps", []))
@@ -176,7 +183,7 @@ class ExecutionService:
                 if execution:
                     execution.status = "error"
                     execution.error_message = str(e)
-                    execution.completed_at = datetime.utcnow()
+                    execution.completed_at = beijing_now()
                     db.commit()
             finally:
                 db.close()
@@ -207,8 +214,8 @@ class ExecutionService:
                 batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
                 if batch_execution:
                     batch_execution.status = "failed"
-                    batch_execution.completed_at = datetime.utcnow()
-                    batch_execution.updated_at = datetime.utcnow()
+                    batch_execution.completed_at = beijing_now()
+                    batch_execution.updated_at = beijing_now()
                     db.commit()
                     
                     # 推送 WebSocket 更新

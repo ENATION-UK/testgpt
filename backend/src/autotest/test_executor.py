@@ -7,10 +7,17 @@ import asyncio
 import base64
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+
+# 设置时区为北京时间
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+def beijing_now():
+    """获取北京时间"""
+    return datetime.now(BEIJING_TZ)
 
 from browser_use.llm import ChatDeepSeek
 from browser_use.controller.service import Controller
@@ -151,9 +158,9 @@ class TestExecutor:
             # 创建执行记录
             execution = TestExecution(
                 test_case_id=test_case_id,
-                execution_name=f"{test_case.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
                 status="running",
-                started_at=datetime.utcnow()
+                started_at=beijing_now()
             )
             db.add(execution)
             db.commit()
@@ -175,7 +182,7 @@ class TestExecutor:
             execution.summary = result.get("summary", "")
             execution.recommendations = result.get("recommendations", "")
             execution.error_message = result.get("error_message", "")
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = beijing_now()
             
             # 保存测试步骤
             if result.get("test_steps"):
@@ -189,7 +196,7 @@ class TestExecutor:
                         error_message=step_data.get("error_message"),
                         screenshot_path=step_data.get("screenshot_path"),
                         duration_seconds=step_data.get("duration_seconds"),
-                        completed_at=datetime.utcnow()
+                        completed_at=beijing_now()
                     )
                     db.add(step)
             
@@ -216,7 +223,7 @@ class TestExecutor:
             if 'execution' in locals():
                 execution.status = "error"
                 execution.error_message = str(e)
-                execution.completed_at = datetime.utcnow()
+                execution.completed_at = beijing_now()
                 db.commit()
             
             return {
@@ -308,9 +315,9 @@ class TestExecutor:
                 
                 self.logger.info(f"开始执行任务: {test_case.task_content[:100]}...")
                 
-                start_time = datetime.utcnow()
+                start_time = beijing_now()
                 history = await agent.run()
-                end_time = datetime.utcnow()
+                end_time = beijing_now()
                 
                 total_duration = (end_time - start_time).total_seconds()
                 
@@ -380,7 +387,7 @@ class TestExecutor:
         output_dir.mkdir(parents=True, exist_ok=True)
         
         saved_paths = []
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = beijing_now().strftime("%Y%m%d_%H%M%S")
         
         for i, screenshot in enumerate(screenshots):
             if screenshot and isinstance(screenshot, str):
@@ -484,7 +491,7 @@ class BatchTestExecutor:
                     status="running",
                     total_count=len(test_case_ids),
                     pending_count=len(test_case_ids),
-                    started_at=datetime.utcnow()
+                    started_at=beijing_now()
                 )
                 db.add(batch_execution)
                 db.commit()
@@ -515,8 +522,8 @@ class BatchTestExecutor:
             
             # 更新批量执行任务状态为完成
             batch_execution.status = "completed"
-            batch_execution.completed_at = datetime.utcnow()
-            batch_execution.updated_at = datetime.utcnow()
+            batch_execution.completed_at = beijing_now()
+            batch_execution.updated_at = beijing_now()
             
             # 统计执行结果
             success_count = db.query(BatchExecutionTestCase).filter(
@@ -570,8 +577,8 @@ class BatchTestExecutor:
                 batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
                 if batch_execution:
                     batch_execution.status = "failed"
-                    batch_execution.completed_at = datetime.utcnow()
-                    batch_execution.updated_at = datetime.utcnow()
+                    batch_execution.completed_at = beijing_now()
+                    batch_execution.updated_at = beijing_now()
                     db.commit()
             raise
         finally:
@@ -589,8 +596,8 @@ class BatchTestExecutor:
         try:
             # 更新状态为运行中
             batch_test_case.status = "running"
-            batch_test_case.started_at = datetime.utcnow()
-            batch_test_case.updated_at = datetime.utcnow()
+            batch_test_case.started_at = beijing_now()
+            batch_test_case.updated_at = beijing_now()
             db.commit()
             
             # 执行测试用例
@@ -606,8 +613,8 @@ class BatchTestExecutor:
             else:
                 batch_test_case.status = "failed"
             
-            batch_test_case.completed_at = datetime.utcnow()
-            batch_test_case.updated_at = datetime.utcnow()
+            batch_test_case.completed_at = beijing_now()
+            batch_test_case.updated_at = beijing_now()
             db.commit()
             
             # 更新批量执行任务的统计数据
@@ -645,7 +652,7 @@ class BatchTestExecutor:
                 
                 batch_execution.running_count = running_count
                 batch_execution.pending_count = pending_count
-                batch_execution.updated_at = datetime.utcnow()
+                batch_execution.updated_at = beijing_now()
                 db.commit()
                 
                 # 推送 WebSocket 更新
@@ -665,8 +672,8 @@ class BatchTestExecutor:
         except Exception as e:
             self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 失败: {e}")
             batch_test_case.status = "failed"
-            batch_test_case.completed_at = datetime.utcnow()
-            batch_test_case.updated_at = datetime.utcnow()
+            batch_test_case.completed_at = beijing_now()
+            batch_test_case.updated_at = beijing_now()
             db.commit()
     
     def get_batch_execution_status(self, batch_execution_id: int) -> Dict[str, Any]:

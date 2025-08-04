@@ -6,7 +6,14 @@ import json
 import asyncio
 from typing import Dict, Set, Any
 from fastapi import WebSocket, WebSocketDisconnect
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# 设置时区为北京时间
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+def beijing_now():
+    """获取北京时间"""
+    return datetime.now(BEIJING_TZ)
 
 
 class WebSocketManager:
@@ -84,7 +91,7 @@ class WebSocketManager:
             "type": "batch_execution_update",
             "batch_execution_id": batch_execution_id,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": beijing_now().isoformat()
         })
         
         disconnected = set()
