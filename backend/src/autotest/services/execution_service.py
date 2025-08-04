@@ -202,7 +202,8 @@ class ExecutionService:
         """在后台运行批量执行任务"""
         try:
             # 使用BatchTestExecutor执行批量测试，传递现有的batch_execution_id
-            batch_executor = BatchTestExecutor()
+            # 设置最大并发数为5
+            batch_executor = BatchTestExecutor(max_concurrent=5)
             result = await batch_executor.execute_batch_test(test_case_ids, headless, batch_execution_id=batch_execution_id)
             
             # 注意：不需要在这里更新批量执行任务状态，因为BatchTestExecutor已经处理了

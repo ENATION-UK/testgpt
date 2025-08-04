@@ -434,14 +434,16 @@ class TestExecutor:
 class BatchTestExecutor:
     """批量测试执行器"""
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, max_concurrent: int = 5):
         """
         初始化批量测试执行器
         
         Args:
             api_key: DeepSeek API密钥
+            max_concurrent: 最大并发执行数量，默认为5
         """
         self.test_executor = TestExecutor(api_key)
+        self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
     
     async def execute_batch_test(self, test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务", batch_execution_id: Optional[int] = None) -> Dict[str, Any]:
@@ -509,12 +511,26 @@ class BatchTestExecutor:
                     batch_test_cases.append(batch_test_case)
                 db.commit()
             
-            self.logger.info(f"开始批量执行任务: {batch_execution.name} (ID: {batch_execution.id})")
+            self.logger.info(f"开始批量执行任务: {batch_execution.name} (ID: {batch_execution.id})，最大并发数: {self.max_concurrent}")
             
-            # 并发执行测试用例
+            # 使用信号量控制并发执行测试用例
+            semaphore = asyncio.Semaphore(self.max_concurrent)
+            
+            async def execute_with_semaphore(batch_test_case):
+                async with semaphore:
+                    self.logger.info(f"开始执行测试用例 {batch_test_case.test_case_id} (当前并发数: {self.max_concurrent - semaphore._value})")
+                    try:
+                        result = await self._execute_single_test_in_batch(batch_test_case, headless, db)
+                        self.logger.info(f"完成执行测试用例 {batch_test_case.test_case_id}")
+                        return result
+                    except Exception as e:
+                        self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 时发生异常: {e}")
+                        raise
+            
+            # 创建所有任务
             tasks = []
             for batch_test_case in batch_test_cases:
-                task = self._execute_single_test_in_batch(batch_test_case, headless, db)
+                task = execute_with_semaphore(batch_test_case)
                 tasks.append(task)
             
             # 等待所有任务完成
@@ -765,5 +781,5 @@ async def execute_multiple_tests(test_case_ids: List[int], headless: bool = Fals
 
 async def execute_batch_tests(test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务") -> Dict[str, Any]:
     """批量执行测试用例的便捷函数（带进度跟踪）"""
-    executor = BatchTestExecutor()
+    executor = BatchTestExecutor(max_concurrent=5)
     return await executor.execute_batch_test(test_case_ids, headless, batch_name)
