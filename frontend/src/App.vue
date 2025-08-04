@@ -25,6 +25,10 @@
               <el-icon><VideoPlay /></el-icon>
               执行记录
             </el-menu-item>
+            <el-menu-item index="/batch-executions">
+              <el-icon><Collection /></el-icon>
+              批量执行
+            </el-menu-item>
             <el-menu-item index="/statistics">
               <el-icon><TrendCharts /></el-icon>
               统计信息
@@ -53,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { Monitor, House, Document, VideoPlay, TrendCharts, Setting, ChatDotRound } from '@element-plus/icons-vue'
+import { Monitor, House, Document, VideoPlay, Collection, TrendCharts, Setting, ChatDotRound } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>
@@ -128,4 +132,4 @@ body {
   padding: 0;
   background: #f5f5f5;
 }
-</style> 
+</style>

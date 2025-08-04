@@ -118,4 +118,36 @@ export interface PromptConfig {
 
 export interface PromptConfigResponse extends PromptConfig {
   is_valid: boolean
-} 
+}
+
+// 批量执行任务类型定义
+export interface BatchExecution {
+  id: number
+  name: string
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  total_count: number
+  success_count: number
+  failed_count: number
+  running_count: number
+  pending_count: number
+  total_duration: number
+  started_at: string
+  completed_at?: string
+  created_at: string
+  updated_at: string
+  test_cases?: BatchExecutionTestCase[]
+}
+
+// 批量执行任务中的测试用例类型定义
+export interface BatchExecutionTestCase {
+  id: number
+  batch_execution_id: number
+  test_case_id: number
+  execution_id?: number
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  overall_status?: 'PASSED' | 'FAILED' | 'PARTIAL'
+  started_at?: string
+  completed_at?: string
+  error_message?: string
+  test_case_name: string
+}

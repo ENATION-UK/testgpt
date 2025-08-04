@@ -52,16 +52,16 @@ async def health_check():
 # ==================== 注册路由模块 ====================
 
 # 测试用例管理路由
-app.include_router(test_cases.router)
+app.include_router(test_cases.router, prefix="/api")
 
 # 测试执行路由
-app.include_router(test_executions.router)
+app.include_router(test_executions.router, prefix="/api")
 
 # 统计信息路由
-app.include_router(statistics.router)
+app.include_router(statistics.router, prefix="/api")
 
 # 配置管理路由
-app.include_router(config.router)
+app.include_router(config.router, prefix="/api")
 
 # ==================== 应用启动事件 ====================
 

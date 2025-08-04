@@ -216,7 +216,6 @@ class ExecutionService:
                 batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
                 if batch_execution:
                     batch_execution.status = "failed"
-                    batch_execution.error_message = str(e)
                     batch_execution.completed_at = datetime.utcnow()
                     batch_execution.updated_at = datetime.utcnow()
                     db.commit()

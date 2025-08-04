@@ -187,15 +187,18 @@ let pollingTimer: NodeJS.Timeout | null = null
 const loadBatchExecutions = async () => {
   loading.value = true
   try {
-    const skip = (currentPage.value - 1) * pageSize.value
-    const data = await batchExecutionApi.getList({
-      skip,
+    // 正确传递查询参数
+    const params = {
+      skip: (currentPage.value - 1) * pageSize.value,
       limit: pageSize.value
-    })
+    }
+    
+    const data = await batchExecutionApi.getList(params)
     batchExecutions.value = data
+    
     // 注意：由于后端API没有返回总数，这里暂时使用当前页数据长度
     // 在实际项目中，后端应该返回包含总数的分页响应
-    total.value = data.length + skip
+    total.value = data.length + params.skip
   } catch (error) {
     ElMessage.error('加载批量执行任务失败')
   } finally {

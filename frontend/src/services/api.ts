@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse } from '@/types/api'
+import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution } from '@/types/api'
 
 const api = axios.create({
   baseURL: '/api',
@@ -81,13 +81,13 @@ export const batchExecutionApi = {
   
   // 获取批量执行任务列表
   getList: (params?: { skip?: number; limit?: number; status?: string }) => 
-    api.get<any[]>('/test-executions/batch-executions', { params }) as unknown as Promise<any[]>,
+    api.get<BatchExecution[]>('/test-executions/batch-executions', { params }) as unknown as Promise<BatchExecution[]>,
   
   // 获取特定批量执行任务的详细信息
-  getById: (id: number) => api.get<any>(`/test-executions/batch-executions/${id}`) as unknown as Promise<any>,
+  getById: (id: number) => api.get<BatchExecution>(`/test-executions/batch-executions/${id}`) as unknown as Promise<BatchExecution>,
   
   // 获取批量执行任务的状态
-  getStatus: (id: number) => api.get<any>(`/test-executions/batch-executions/${id}/status`) as unknown as Promise<any>
+  getStatus: (id: number) => api.get<BatchExecution>(`/test-executions/batch-executions/${id}/status`) as unknown as Promise<BatchExecution>
 }
 
 // 统计信息API

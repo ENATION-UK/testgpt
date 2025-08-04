@@ -525,7 +525,6 @@ class BatchTestExecutor:
             self.logger.error(f"批量执行测试用例失败: {e}")
             if 'batch_execution' in locals():
                 batch_execution.status = "failed"
-                batch_execution.error_message = str(e)
                 batch_execution.completed_at = datetime.utcnow()
                 batch_execution.updated_at = datetime.utcnow()
                 db.commit()
@@ -611,7 +610,6 @@ class BatchTestExecutor:
         except Exception as e:
             self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 失败: {e}")
             batch_test_case.status = "failed"
-            batch_test_case.error_message = str(e)
             batch_test_case.completed_at = datetime.utcnow()
             batch_test_case.updated_at = datetime.utcnow()
             db.commit()
@@ -667,7 +665,7 @@ class BatchTestExecutor:
                     "overall_status": execution.overall_status if execution else None,
                     "started_at": btc.started_at.isoformat() if btc.started_at else None,
                     "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
-                    "error_message": btc.error_message
+                    "error_message": execution.error_message if execution else None
                 })
             
             return {

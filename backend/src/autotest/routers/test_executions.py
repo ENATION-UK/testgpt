@@ -42,7 +42,7 @@ async def get_test_executions(
     status: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """获取测试执行记录"""
+    """获取测试执行记录列表"""
     query = db.query(TestExecution)
     
     if test_case_id:
@@ -53,36 +53,7 @@ async def get_test_executions(
     executions = query.order_by(TestExecution.created_at.desc()).offset(skip).limit(limit).all()
     return executions
 
-@router.get("/{execution_id}", response_model=TestExecutionResponse)
-async def get_test_execution(execution_id: int, db: Session = Depends(get_db)):
-    """获取特定测试执行记录"""
-    execution = db.query(TestExecution).filter(TestExecution.id == execution_id).first()
-    if not execution:
-        raise HTTPException(status_code=404, detail="执行记录不存在")
-    return execution
-
-@router.get("/{execution_id}/steps", response_model=List[TestStepResponse])
-async def get_test_execution_steps(execution_id: int, db: Session = Depends(get_db)):
-    """获取测试执行步骤详情"""
-    steps = db.query(TestStep).filter(
-        TestStep.execution_id == execution_id
-    ).order_by(TestStep.step_order).all()
-    return steps
-
-@router.get("/test-cases/{test_case_id}/executions", response_model=List[TestExecutionResponse])
-async def get_test_case_executions(
-    test_case_id: int,
-    skip: int = 0,
-    limit: int = 50,
-    db: Session = Depends(get_db)
-):
-    """获取测试用例的执行历史"""
-    executions = db.query(TestExecution).filter(
-        TestExecution.test_case_id == test_case_id
-    ).order_by(TestExecution.created_at.desc()).offset(skip).limit(limit).all()
-    return executions
-
-# 批量执行任务相关路由
+# 批量执行任务相关路由 - 必须在通用路由之前定义
 @router.post("/batch-executions", response_model=dict)
 async def create_batch_execution(
     batch_request: BatchExecutionRequest,
@@ -160,7 +131,7 @@ async def get_batch_execution(batch_execution_id: int, db: Session = Depends(get
             "overall_status": execution.overall_status if execution else None,
             "started_at": btc.started_at.isoformat() if btc.started_at else None,
             "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
-            "error_message": btc.error_message
+            "error_message": execution.error_message if execution else None
         })
     
     return {
@@ -212,7 +183,7 @@ async def get_batch_execution_status(batch_execution_id: int, db: Session = Depe
             "overall_status": execution.overall_status if execution else None,
             "started_at": btc.started_at.isoformat() if btc.started_at else None,
             "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
-            "error_message": btc.error_message
+            "error_message": execution.error_message if execution else None
         })
     
     return {
@@ -231,3 +202,33 @@ async def get_batch_execution_status(batch_execution_id: int, db: Session = Depe
         "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None,
         "test_cases": test_case_details
     }
+
+# 通用路由 - 必须在特定路由之后定义
+@router.get("/{execution_id}", response_model=TestExecutionResponse)
+async def get_test_execution(execution_id: int, db: Session = Depends(get_db)):
+    """获取特定测试执行记录"""
+    execution = db.query(TestExecution).filter(TestExecution.id == execution_id).first()
+    if not execution:
+        raise HTTPException(status_code=404, detail="执行记录不存在")
+    return execution
+
+@router.get("/{execution_id}/steps", response_model=List[TestStepResponse])
+async def get_test_execution_steps(execution_id: int, db: Session = Depends(get_db)):
+    """获取测试执行步骤详情"""
+    steps = db.query(TestStep).filter(
+        TestStep.execution_id == execution_id
+    ).order_by(TestStep.step_order).all()
+    return steps
+
+@router.get("/test-cases/{test_case_id}/executions", response_model=List[TestExecutionResponse])
+async def get_test_case_executions(
+    test_case_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """获取测试用例的执行历史"""
+    executions = db.query(TestExecution).filter(
+        TestExecution.test_case_id == test_case_id
+    ).order_by(TestExecution.created_at.desc()).offset(skip).limit(limit).all()
+    return executions
