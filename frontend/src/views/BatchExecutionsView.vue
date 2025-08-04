@@ -3,6 +3,13 @@
     <div class="page-header">
       <h2>批量执行任务</h2>
       <div class="header-actions">
+        <el-tag 
+          :type="websocketService.isConnected() ? 'success' : 'danger'"
+          size="small"
+          style="margin-right: 10px;"
+        >
+          {{ websocketService.isConnected() ? '实时连接' : '连接断开' }}
+        </el-tag>
         <el-button type="primary" @click="refreshBatchExecutions">
           <el-icon><Refresh /></el-icon>
           刷新
@@ -168,6 +175,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { batchExecutionApi } from '@/services/api'
+import { websocketService } from '@/services/websocket'
 import type { BatchExecution } from '@/types/api'
 
 const router = useRouter()
@@ -181,8 +189,8 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
-// 轮询定时器
-let pollingTimer: NodeJS.Timeout | null = null
+// WebSocket 消息处理器
+let batchUpdateHandler: ((message: any) => void) | null = null
 
 const loadBatchExecutions = async () => {
   loading.value = true
@@ -199,6 +207,13 @@ const loadBatchExecutions = async () => {
     // 注意：由于后端API没有返回总数，这里暂时使用当前页数据长度
     // 在实际项目中，后端应该返回包含总数的分页响应
     total.value = data.length + params.skip
+    
+    // 订阅所有运行中的批量执行任务
+    data.forEach(task => {
+      if (task.status === 'running') {
+        websocketService.subscribeToBatch(task.id)
+      }
+    })
   } catch (error) {
     ElMessage.error('加载批量执行任务失败')
   } finally {
@@ -228,9 +243,9 @@ const viewBatchExecution = async (batchExecution: BatchExecution) => {
     selectedBatchExecution.value = data
     showDetailDialog.value = true
     
-    // 如果任务仍在运行，启动轮询更新
+    // 如果任务仍在运行，订阅 WebSocket 更新
     if (data.status === 'running') {
-      startPolling(data.id)
+      websocketService.subscribeToBatch(data.id)
     }
   } catch (error) {
     ElMessage.error('加载批量执行任务详情失败')
@@ -246,35 +261,36 @@ const viewTestCaseExecution = (executionId: number) => {
 
 const handleDetailDialogClose = () => {
   showDetailDialog.value = false
-  stopPolling()
+  // 取消订阅当前查看的批量执行任务
+  if (selectedBatchExecution.value) {
+    websocketService.unsubscribeFromBatch(selectedBatchExecution.value.id)
+  }
   selectedBatchExecution.value = null
 }
 
-const startPolling = (batchExecutionId: number) => {
-  stopPolling() // 先停止之前的轮询
+// WebSocket 消息处理函数
+const handleBatchExecutionUpdate = (message: any) => {
+  const { batch_execution_id, data } = message
   
-  // 每隔5秒轮询一次
-  pollingTimer = setInterval(async () => {
-    try {
-      const data = await batchExecutionApi.getStatus(batchExecutionId)
-      if (selectedBatchExecution.value && selectedBatchExecution.value.id === batchExecutionId) {
-        selectedBatchExecution.value = { ...selectedBatchExecution.value, ...data }
-        
-        // 如果任务已完成，停止轮询
-        if (data.status !== 'running') {
-          stopPolling()
-        }
-      }
-    } catch (error) {
-      console.error('轮询批量执行任务状态失败:', error)
+  // 更新列表中的批量执行任务
+  const index = batchExecutions.value.findIndex(task => task.id === batch_execution_id)
+  if (index !== -1) {
+    batchExecutions.value[index] = { ...batchExecutions.value[index], ...data }
+  }
+  
+  // 如果当前查看的详情对话框是该任务，也更新详情
+  if (selectedBatchExecution.value && selectedBatchExecution.value.id === batch_execution_id) {
+    selectedBatchExecution.value = { ...selectedBatchExecution.value, ...data }
+    
+    // 如果任务已完成，取消订阅
+    if (data.status !== 'running') {
+      websocketService.unsubscribeFromBatch(batch_execution_id)
     }
-  }, 5000)
-}
-
-const stopPolling = () => {
-  if (pollingTimer) {
-    clearInterval(pollingTimer)
-    pollingTimer = null
+  }
+  
+  // 如果任务已完成，从列表中移除订阅
+  if (data.status !== 'running') {
+    websocketService.unsubscribeFromBatch(batch_execution_id)
   }
 }
 
@@ -358,10 +374,24 @@ const formatDuration = (seconds: number): string => {
 
 onMounted(() => {
   loadBatchExecutions()
+  
+  // 注册 WebSocket 消息处理器
+  batchUpdateHandler = handleBatchExecutionUpdate
+  websocketService.onMessage('batch_execution_update', batchUpdateHandler)
 })
 
 onUnmounted(() => {
-  stopPolling()
+  // 取消所有订阅
+  batchExecutions.value.forEach(task => {
+    if (task.status === 'running') {
+      websocketService.unsubscribeFromBatch(task.id)
+    }
+  })
+  
+  // 移除 WebSocket 消息处理器
+  if (batchUpdateHandler) {
+    websocketService.offMessage('batch_execution_update', batchUpdateHandler)
+  }
 })
 </script>
 

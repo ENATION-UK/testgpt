@@ -95,6 +95,7 @@ dependencies = [
     { name = "socksio" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.dev-dependencies]
@@ -117,6 +118,7 @@ requires-dist = [
     { name = "socksio", specifier = ">=1.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.42" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
+    { name = "websockets", specifier = ">=12.0" },
 ]
 
 [package.metadata.requires-dev]

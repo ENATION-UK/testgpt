@@ -336,6 +336,11 @@ const handleBatchExecute = async () => {
       // 重置表单
       batchExecuteForm.value.selectedTestCases = []
       
+      // 订阅批量执行任务的 WebSocket 更新
+      import('@/services/websocket').then(({ websocketService }) => {
+        websocketService.subscribeToBatch(result.batch_execution_id)
+      })
+      
       // 跳转到批量执行任务页面
       router.push({
         name: 'batch-executions',

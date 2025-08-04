@@ -8,7 +8,7 @@ from datetime import datetime
 import uvicorn
 
 from .database import init_db
-from .routers import test_cases, test_executions, statistics, config
+from .routers import test_cases, test_executions, statistics, config, websocket
 
 # 创建FastAPI应用实例
 app = FastAPI(
@@ -62,6 +62,9 @@ app.include_router(statistics.router, prefix="/api")
 
 # 配置管理路由
 app.include_router(config.router, prefix="/api")
+
+# WebSocket 路由
+app.include_router(websocket.router)
 
 # ==================== 应用启动事件 ====================
 

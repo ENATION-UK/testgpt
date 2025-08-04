@@ -17,6 +17,7 @@ from browser_use.controller.service import Controller
 from playwright.async_api import async_playwright
 
 from .database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
+from .websocket_manager import websocket_manager
 
 # 测试结果模型
 class TestStepResult(BaseModel):
@@ -509,6 +510,21 @@ class BatchTestExecutor:
             
             db.commit()
             
+            # 推送批量执行任务完成通知
+            await websocket_manager.broadcast_batch_update(
+                batch_execution.id,
+                {
+                    "status": batch_execution.status,
+                    "success_count": batch_execution.success_count,
+                    "failed_count": batch_execution.failed_count,
+                    "running_count": batch_execution.running_count,
+                    "pending_count": batch_execution.pending_count,
+                    "total_count": batch_execution.total_count,
+                    "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
+                    "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
+                }
+            )
+            
             return {
                 "success": True,
                 "batch_execution_id": batch_execution.id,
@@ -606,6 +622,20 @@ class BatchTestExecutor:
                 batch_execution.pending_count = pending_count
                 batch_execution.updated_at = datetime.utcnow()
                 db.commit()
+                
+                # 推送 WebSocket 更新
+                await websocket_manager.broadcast_batch_update(
+                    batch_execution.id,
+                    {
+                        "status": batch_execution.status,
+                        "success_count": batch_execution.success_count,
+                        "failed_count": batch_execution.failed_count,
+                        "running_count": batch_execution.running_count,
+                        "pending_count": batch_execution.pending_count,
+                        "total_count": batch_execution.total_count,
+                        "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
+                    }
+                )
                 
         except Exception as e:
             self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 失败: {e}")

@@ -11,6 +11,7 @@ import asyncio
 from ..database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
 from ..models import TestExecutionRequest, TestExecutionResponse, BatchExecutionRequest, BatchExecutionResponse
 from ..test_executor import execute_single_test, execute_multiple_tests, BatchTestExecutor
+from ..websocket_manager import websocket_manager
 
 class ExecutionService:
     """测试执行服务类"""
@@ -206,6 +207,21 @@ class ExecutionService:
                     batch_execution.completed_at = datetime.utcnow()
                     batch_execution.updated_at = datetime.utcnow()
                     db.commit()
+                    
+                    # 推送 WebSocket 更新
+                    await websocket_manager.broadcast_batch_update(
+                        batch_execution_id,
+                        {
+                            "status": batch_execution.status,
+                            "success_count": batch_execution.success_count,
+                            "failed_count": batch_execution.failed_count,
+                            "running_count": batch_execution.running_count,
+                            "pending_count": batch_execution.pending_count,
+                            "total_count": batch_execution.total_count,
+                            "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
+                            "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
+                        }
+                    )
             finally:
                 db.close()
                 
@@ -219,5 +235,20 @@ class ExecutionService:
                     batch_execution.completed_at = datetime.utcnow()
                     batch_execution.updated_at = datetime.utcnow()
                     db.commit()
+                    
+                    # 推送 WebSocket 更新
+                    await websocket_manager.broadcast_batch_update(
+                        batch_execution_id,
+                        {
+                            "status": batch_execution.status,
+                            "success_count": batch_execution.success_count,
+                            "failed_count": batch_execution.failed_count,
+                            "running_count": batch_execution.running_count,
+                            "pending_count": batch_execution.pending_count,
+                            "total_count": batch_execution.total_count,
+                            "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
+                            "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
+                        }
+                    )
             finally:
                 db.close()
