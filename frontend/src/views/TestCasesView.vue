@@ -167,10 +167,18 @@
     <el-dialog
       v-model="showBatchExecuteDialog"
       title="批量执行测试用例"
-      width="600px"
+      width="700px"
     >
       <el-form :model="batchExecuteForm" label-width="100px">
-        <el-form-item label="选择用例">
+        <el-form-item label="执行方式">
+          <el-radio-group v-model="batchExecuteForm.executionType" @change="handleExecutionTypeChange">
+            <el-radio label="manual">手动选择用例</el-radio>
+            <el-radio label="category">按分类执行</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <!-- 手动选择用例 -->
+        <el-form-item v-if="batchExecuteForm.executionType === 'manual'" label="选择用例">
           <el-select
             v-model="batchExecuteForm.selectedTestCases"
             multiple
@@ -186,6 +194,23 @@
             />
           </el-select>
         </el-form-item>
+        
+        <!-- 按分类执行 -->
+        <el-form-item v-if="batchExecuteForm.executionType === 'category'" label="选择分类">
+          <el-cascader
+            v-model="batchExecuteForm.selectedCategoryId"
+            :options="categoryOptions"
+            :props="cascaderProps"
+            placeholder="请选择要执行的分类"
+            style="width: 100%"
+            @change="handleCategorySelectionChange"
+          />
+          <div v-if="batchExecuteForm.selectedCategoryId" style="margin-top: 10px; color: #666; font-size: 14px;">
+            <el-icon><InfoFilled /></el-icon>
+            将执行该分类及其所有子分类下的测试用例
+          </div>
+        </el-form-item>
+        
         <el-form-item label="执行模式">
           <el-radio-group v-model="batchExecuteForm.headless">
             <el-radio :label="true">无头模式</el-radio>
@@ -196,7 +221,7 @@
       
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showBatchExecuteDialog = false">取消</el-button>
+          <el-button @click="closeBatchExecuteDialog">取消</el-button>
           <el-button type="primary" @click="handleBatchExecute" :loading="batchExecuting">
             执行
           </el-button>
@@ -210,7 +235,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, ArrowDown, Upload, Operation, Folder } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Upload, Operation, Folder, InfoFilled } from '@element-plus/icons-vue'
 import { testCaseApi, testExecutionApi, batchExecutionApi, categoryApi } from '@/services/api'
 import type { TestCase, Category } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
@@ -247,7 +272,9 @@ const cascaderProps = {
 
 // 批量执行相关
 const batchExecuteForm = ref({
+  executionType: 'manual' as 'manual' | 'category',
   selectedTestCases: [] as number[],
+  selectedCategoryId: null as number | null,
   headless: true
 })
 const batchExecuting = ref(false)
@@ -446,17 +473,78 @@ const handleSelectionChange = (selection: TestCase[]) => {
   batchExecuteForm.value.selectedTestCases = selection.map(item => item.id)
 }
 
+// 处理执行方式变化
+const handleExecutionTypeChange = () => {
+  // 重置相关字段
+  if (batchExecuteForm.value.executionType === 'manual') {
+    batchExecuteForm.value.selectedCategoryId = null
+  } else {
+    batchExecuteForm.value.selectedTestCases = []
+  }
+}
+
+// 处理分类选择变化
+const handleCategorySelectionChange = (value: number | number[] | null) => {
+  if (Array.isArray(value)) {
+    // 当 checkStrictly: true 时，value 可能是数组，取最后一个值
+    batchExecuteForm.value.selectedCategoryId = value.length > 0 ? value[value.length - 1] : null
+  } else {
+    // 当 checkStrictly: true 时，value 也可能是单个值
+    batchExecuteForm.value.selectedCategoryId = value
+  }
+}
+
+// 关闭批量执行对话框
+const closeBatchExecuteDialog = () => {
+  showBatchExecuteDialog.value = false
+  // 重置表单
+  batchExecuteForm.value = {
+    executionType: 'manual',
+    selectedTestCases: [],
+    selectedCategoryId: null,
+    headless: true
+  }
+}
+
 const handleBatchExecute = async () => {
-  if (batchExecuteForm.value.selectedTestCases.length === 0) {
-    ElMessage.warning('请至少选择一个测试用例')
-    return
+  let testCaseIds: number[] = []
+  
+  if (batchExecuteForm.value.executionType === 'manual') {
+    if (batchExecuteForm.value.selectedTestCases.length === 0) {
+      ElMessage.warning('请至少选择一个测试用例')
+      return
+    }
+    testCaseIds = batchExecuteForm.value.selectedTestCases
+  } else {
+    if (!batchExecuteForm.value.selectedCategoryId) {
+      ElMessage.warning('请选择一个分类')
+      return
+    }
+    
+    try {
+      // 获取分类下的所有测试用例ID（包括子分类）
+      const categoryData = await categoryApi.getTestCases(
+        batchExecuteForm.value.selectedCategoryId,
+        true // 包含子分类
+      )
+      
+      if (categoryData.test_case_ids.length === 0) {
+        ElMessage.warning('该分类下没有测试用例')
+        return
+      }
+      
+      testCaseIds = categoryData.test_case_ids
+    } catch (error) {
+      ElMessage.error('获取分类测试用例失败')
+      return
+    }
   }
   
   batchExecuting.value = true
   try {
     // 调用批量执行API
     const result = await batchExecutionApi.create(
-      batchExecuteForm.value.selectedTestCases,
+      testCaseIds,
       batchExecuteForm.value.headless
     )
     
@@ -465,6 +553,7 @@ const handleBatchExecute = async () => {
       showBatchExecuteDialog.value = false
       // 重置表单
       batchExecuteForm.value.selectedTestCases = []
+      batchExecuteForm.value.selectedCategoryId = null
       
       // 订阅批量执行任务的 WebSocket 更新
       import('@/services/websocket').then(({ websocketService }) => {

@@ -77,7 +77,7 @@
             @keyup.enter="addTag"
             style="margin-bottom: 10px"
           />
-          <div v-if="form.tags.length > 0" style="margin-top: 10px">
+          <div v-if="form.tags && form.tags.length > 0" style="margin-top: 10px">
             <el-tag
               v-for="tag in form.tags"
               :key="tag"
@@ -213,16 +213,18 @@ import type { CreateTestCaseRequest, Category } from '@/types/api'
   
   const addTag = () => {
     const tag = tagInput.value.trim()
-    if (tag && !form.tags.includes(tag)) {
+    if (tag && form.tags && !form.tags.includes(tag)) {
       form.tags.push(tag)
       tagInput.value = ''
     }
   }
   
   const removeTag = (tag: string) => {
-    const index = form.tags.indexOf(tag)
-    if (index > -1) {
-      form.tags.splice(index, 1)
+    if (form.tags) {
+      const index = form.tags.indexOf(tag)
+      if (index > -1) {
+        form.tags.splice(index, 1)
+      }
     }
   }
   

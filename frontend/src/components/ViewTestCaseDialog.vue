@@ -24,7 +24,7 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="创建时间" :span="2">
-            {{ formatDate(testCase.created_at) }}
+            {{ testCase.created_at ? formatDate(testCase.created_at) : '' }}
           </el-descriptions-item>
           <el-descriptions-item label="描述" :span="2">
             {{ testCase.description || '暂无描述' }}

@@ -29,7 +29,7 @@
           <el-descriptions-item label="失败步骤">{{ execution.failed_steps }}</el-descriptions-item>
           <el-descriptions-item label="跳过步骤">{{ execution.skipped_steps }}</el-descriptions-item>
           <el-descriptions-item label="开始时间">{{ formatDate(execution.started_at) }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ formatDate(execution.completed_at) }}</el-descriptions-item>
+          <el-descriptions-item label="完成时间">{{ execution.completed_at ? formatDate(execution.completed_at) : '' }}</el-descriptions-item>
         </el-descriptions>
 
         <div v-if="execution.summary" class="summary-section">
