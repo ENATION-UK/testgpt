@@ -49,7 +49,7 @@ export interface TestExecution {
   id: number
   test_case_id: number
   execution_name: string
-  status: 'running' | 'passed' | 'failed' | 'error'
+  status: 'running' | 'passed' | 'failed' | 'error' | 'cancelled'
   overall_status: 'PASSED' | 'FAILED' | 'PARTIAL'
   total_steps: number
   passed_steps: number
@@ -155,13 +155,14 @@ export interface PromptConfigResponse extends PromptConfig {
 export interface BatchExecution {
   id: number
   name: string
-  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
   total_count: number
   success_count: number
   failed_count: number
   running_count: number
   pending_count: number
   total_duration: number
+  headless: boolean
   started_at: string
   completed_at?: string
   created_at: string
@@ -175,7 +176,7 @@ export interface BatchExecutionTestCase {
   batch_execution_id: number
   test_case_id: number
   execution_id?: number
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
   overall_status?: 'PASSED' | 'FAILED' | 'PARTIAL'
   started_at?: string
   completed_at?: string

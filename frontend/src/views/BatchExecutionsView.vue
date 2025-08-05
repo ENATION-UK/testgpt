@@ -68,11 +68,38 @@
             {{ row.completed_at ? formatDate(row.completed_at) : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="viewBatchExecution(row)">
-              查看详情
-            </el-button>
+            <div class="action-buttons">
+              <!-- 执行按钮 - 只在pending状态显示 -->
+              <el-button 
+                v-if="row.status === 'pending'" 
+                size="small" 
+                type="success" 
+                @click="startBatchExecution(row)"
+                :loading="(row as any)[`starting_${row.id}`]"
+              >
+                <el-icon><VideoPlay /></el-icon>
+                执行
+              </el-button>
+              
+              <!-- 停止按钮 - 只在running状态显示 -->
+              <el-button 
+                v-if="row.status === 'running'" 
+                size="small" 
+                type="danger" 
+                @click="stopBatchExecution(row)"
+                :loading="(row as any)[`stopping_${row.id}`]"
+              >
+                <el-icon><VideoPause /></el-icon>
+                停止
+              </el-button>
+              
+              <!-- 查看详情按钮 -->
+              <el-button size="small" type="primary" @click="viewBatchExecution(row)">
+                查看详情
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -116,6 +143,11 @@
           <el-descriptions-item label="运行中">{{ selectedBatchExecution.running_count }}</el-descriptions-item>
           <el-descriptions-item label="待执行">{{ selectedBatchExecution.pending_count }}</el-descriptions-item>
           <el-descriptions-item label="总耗时">{{ formatDuration(selectedBatchExecution.total_duration) }}</el-descriptions-item>
+          <el-descriptions-item label="浏览器模式">
+            <el-tag :type="selectedBatchExecution.headless ? 'info' : 'warning'">
+              {{ selectedBatchExecution.headless ? '无头模式' : '有头模式' }}
+            </el-tag>
+          </el-descriptions-item>
         </el-descriptions>
 
         <h3 style="margin-top: 20px;">测试用例执行详情</h3>
@@ -173,7 +205,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, VideoPlay, VideoPause } from '@element-plus/icons-vue'
 import { batchExecutionApi } from '@/services/api'
 import { websocketService } from '@/services/websocket'
 import type { BatchExecution } from '@/types/api'
@@ -259,6 +291,56 @@ const viewTestCaseExecution = (executionId: number) => {
   })
 }
 
+const startBatchExecution = async (batchExecution: BatchExecution) => {
+  try {
+    // 使用Vue的响应式系统设置loading状态
+    const loadingKey = `starting_${batchExecution.id}`
+    if (!(loadingKey in batchExecution)) {
+      (batchExecution as any)[loadingKey] = false
+    }
+    ;(batchExecution as any)[loadingKey] = true
+    
+    const response = await batchExecutionApi.start(batchExecution.id)
+    if (response.success) {
+      ElMessage.success('批量执行任务已启动')
+      // 刷新列表
+      await loadBatchExecutions()
+    } else {
+      ElMessage.error(response.message || '启动失败')
+    }
+  } catch (error) {
+    ElMessage.error('启动批量执行任务失败')
+  } finally {
+    const loadingKey = `starting_${batchExecution.id}`
+    ;(batchExecution as any)[loadingKey] = false
+  }
+}
+
+const stopBatchExecution = async (batchExecution: BatchExecution) => {
+  try {
+    // 使用Vue的响应式系统设置loading状态
+    const loadingKey = `stopping_${batchExecution.id}`
+    if (!(loadingKey in batchExecution)) {
+      (batchExecution as any)[loadingKey] = false
+    }
+    ;(batchExecution as any)[loadingKey] = true
+    
+    const response = await batchExecutionApi.stop(batchExecution.id)
+    if (response.success) {
+      ElMessage.success('批量执行任务已停止')
+      // 刷新列表
+      await loadBatchExecutions()
+    } else {
+      ElMessage.error(response.message || '停止失败')
+    }
+  } catch (error) {
+    ElMessage.error('停止批量执行任务失败')
+  } finally {
+    const loadingKey = `stopping_${batchExecution.id}`
+    ;(batchExecution as any)[loadingKey] = false
+  }
+}
+
 const handleDetailDialogClose = () => {
   showDetailDialog.value = false
   // 取消订阅当前查看的批量执行任务
@@ -295,6 +377,11 @@ const handleBatchExecutionUpdate = (message: any) => {
 }
 
 const calculateProgress = (batchExecution: BatchExecution): number => {
+  // 如果是pending状态，返回0进度
+  if (batchExecution.status === 'pending') {
+    return 0
+  }
+  
   const completed = batchExecution.success_count + batchExecution.failed_count
   const total = batchExecution.total_count
   if (total === 0) return 0
@@ -303,6 +390,7 @@ const calculateProgress = (batchExecution: BatchExecution): number => {
 
 const getBatchStatusType = (status: string): string => {
   const types: Record<string, string> = {
+    pending: 'info',
     running: 'warning',
     completed: 'success',
     failed: 'danger',
@@ -313,6 +401,7 @@ const getBatchStatusType = (status: string): string => {
 
 const getBatchStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
+    pending: '待执行',
     running: '运行中',
     completed: '已完成',
     failed: '失败',
@@ -323,6 +412,7 @@ const getBatchStatusLabel = (status: string): string => {
 
 const getProgressStatus = (status: string): string | undefined => {
   const statuses: Record<string, string | undefined> = {
+    pending: undefined,
     completed: 'success',
     failed: 'exception',
     cancelled: 'warning'
@@ -335,7 +425,8 @@ const getTestCaseStatusType = (status: string): string => {
     pending: 'info',
     running: 'warning',
     completed: 'success',
-    failed: 'danger'
+    failed: 'danger',
+    cancelled: 'info'
   }
   return types[status] || 'info'
 }
@@ -345,7 +436,8 @@ const getTestCaseStatusLabel = (status: string): string => {
     pending: '待执行',
     running: '运行中',
     completed: '已完成',
-    failed: '失败'
+    failed: '失败',
+    cancelled: '已取消'
   }
   return labels[status] || status
 }
@@ -440,5 +532,15 @@ onUnmounted(() => {
 .batch-execution-detail {
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-buttons .el-button {
+  flex-shrink: 0;
 }
 </style>

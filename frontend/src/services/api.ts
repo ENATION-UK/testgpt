@@ -86,6 +86,14 @@ export const batchExecutionApi = {
   // 获取特定批量执行任务的详细信息
   getById: (id: number) => api.get<BatchExecution>(`/test-executions/batch-executions/${id}`) as unknown as Promise<BatchExecution>,
   
+  // 启动批量执行任务
+  start: (id: number) => 
+    api.post<{ success: boolean; message: string }>(`/test-executions/batch-executions/${id}/start`) as unknown as Promise<{ success: boolean; message: string }>,
+  
+  // 停止批量执行任务
+  stop: (id: number) => 
+    api.post<{ success: boolean; message: string }>(`/test-executions/batch-executions/${id}/stop`) as unknown as Promise<{ success: boolean; message: string }>,
+  
   // 获取批量执行任务的状态
   getStatus: (id: number) => api.get<BatchExecution>(`/test-executions/batch-executions/${id}/status`) as unknown as Promise<BatchExecution>
 }

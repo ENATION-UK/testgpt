@@ -91,6 +91,7 @@ async def get_batch_executions(
             "running_count": batch.running_count,
             "pending_count": batch.pending_count,
             "total_duration": batch.total_duration,
+            "headless": batch.headless,
             "started_at": batch.started_at.isoformat() if batch.started_at else None,
             "completed_at": batch.completed_at.isoformat() if batch.completed_at else None,
             "created_at": batch.created_at.isoformat() if batch.created_at else None,
@@ -106,33 +107,24 @@ async def get_batch_execution(batch_execution_id: int, db: Session = Depends(get
     if not batch_execution:
         raise HTTPException(status_code=404, detail="批量执行任务不存在")
     
-    # 获取批量执行任务中的测试用例
+    # 获取批量执行任务中的测试用例详情
     batch_test_cases = db.query(BatchExecutionTestCase).filter(
         BatchExecutionTestCase.batch_execution_id == batch_execution_id
     ).all()
     
-    # 转换为字典格式
-    test_case_details = []
+    # 获取测试用例信息
+    test_cases_info = []
     for btc in batch_test_cases:
-        # 获取测试用例信息
         test_case = db.query(TestCase).filter(TestCase.id == btc.test_case_id).first()
-        
-        # 获取执行记录信息
-        execution = None
-        if btc.execution_id:
-            execution = db.query(TestExecution).filter(TestExecution.id == btc.execution_id).first()
-        
-        test_case_details.append({
-            "id": btc.id,
+        test_case_info = {
             "test_case_id": btc.test_case_id,
-            "test_case_name": test_case.name if test_case else "未知",
-            "execution_id": btc.execution_id,
+            "test_case_name": test_case.name if test_case else "未知测试用例",
             "status": btc.status,
-            "overall_status": execution.overall_status if execution else None,
             "started_at": btc.started_at.isoformat() if btc.started_at else None,
             "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
-            "error_message": execution.error_message if execution else None
-        })
+            "execution_id": btc.execution_id
+        }
+        test_cases_info.append(test_case_info)
     
     return {
         "id": batch_execution.id,
@@ -144,64 +136,30 @@ async def get_batch_execution(batch_execution_id: int, db: Session = Depends(get
         "running_count": batch_execution.running_count,
         "pending_count": batch_execution.pending_count,
         "total_duration": batch_execution.total_duration,
+        "headless": batch_execution.headless,
         "started_at": batch_execution.started_at.isoformat() if batch_execution.started_at else None,
         "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
         "created_at": batch_execution.created_at.isoformat() if batch_execution.created_at else None,
         "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None,
-        "test_cases": test_case_details
+        "test_cases": test_cases_info
     }
 
-@router.get("/batch-executions/{batch_execution_id}/status", response_model=dict)
-async def get_batch_execution_status(batch_execution_id: int, db: Session = Depends(get_db)):
-    """获取批量执行任务的状态"""
-    batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
-    if not batch_execution:
-        raise HTTPException(status_code=404, detail="批量执行任务不存在")
-    
-    # 获取批量执行任务中的测试用例
-    batch_test_cases = db.query(BatchExecutionTestCase).filter(
-        BatchExecutionTestCase.batch_execution_id == batch_execution_id
-    ).all()
-    
-    # 转换为字典格式
-    test_case_details = []
-    for btc in batch_test_cases:
-        # 获取测试用例信息
-        test_case = db.query(TestCase).filter(TestCase.id == btc.test_case_id).first()
-        
-        # 获取执行记录信息
-        execution = None
-        if btc.execution_id:
-            execution = db.query(TestExecution).filter(TestExecution.id == btc.execution_id).first()
-        
-        test_case_details.append({
-            "id": btc.id,
-            "test_case_id": btc.test_case_id,
-            "test_case_name": test_case.name if test_case else "未知",
-            "execution_id": btc.execution_id,
-            "status": btc.status,
-            "overall_status": execution.overall_status if execution else None,
-            "started_at": btc.started_at.isoformat() if btc.started_at else None,
-            "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
-            "error_message": execution.error_message if execution else None
-        })
-    
-    return {
-        "id": batch_execution.id,
-        "name": batch_execution.name,
-        "status": batch_execution.status,
-        "total_count": batch_execution.total_count,
-        "success_count": batch_execution.success_count,
-        "failed_count": batch_execution.failed_count,
-        "running_count": batch_execution.running_count,
-        "pending_count": batch_execution.pending_count,
-        "total_duration": batch_execution.total_duration,
-        "started_at": batch_execution.started_at.isoformat() if batch_execution.started_at else None,
-        "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
-        "created_at": batch_execution.created_at.isoformat() if batch_execution.created_at else None,
-        "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None,
-        "test_cases": test_case_details
-    }
+@router.post("/batch-executions/{batch_execution_id}/start", response_model=dict)
+async def start_batch_execution(
+    batch_execution_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """启动批量执行任务"""
+    return await ExecutionService.start_batch_execution(batch_execution_id, background_tasks, db)
+
+@router.post("/batch-executions/{batch_execution_id}/stop", response_model=dict)
+async def stop_batch_execution(
+    batch_execution_id: int,
+    db: Session = Depends(get_db)
+):
+    """停止批量执行任务"""
+    return await ExecutionService.stop_batch_execution(batch_execution_id, db)
 
 # 通用路由 - 必须在特定路由之后定义
 @router.get("/{execution_id}", response_model=TestExecutionResponse)

@@ -223,7 +223,7 @@
         <span class="dialog-footer">
           <el-button @click="closeBatchExecuteDialog">取消</el-button>
           <el-button type="primary" @click="handleBatchExecute" :loading="batchExecuting">
-            执行
+            确定
           </el-button>
         </span>
       </template>
@@ -549,21 +549,15 @@ const handleBatchExecute = async () => {
     )
     
     if (result.success) {
-      ElMessage.success('批量执行任务已创建')
+      ElMessage.success('批量执行任务已创建，请在批量执行页面点击执行按钮开始执行')
       showBatchExecuteDialog.value = false
       // 重置表单
       batchExecuteForm.value.selectedTestCases = []
       batchExecuteForm.value.selectedCategoryId = null
       
-      // 订阅批量执行任务的 WebSocket 更新
-      import('@/services/websocket').then(({ websocketService }) => {
-        websocketService.subscribeToBatch(result.batch_execution_id)
-      })
-      
       // 跳转到批量执行任务页面
       router.push({
-        name: 'batch-executions',
-        params: { batchExecutionId: result.batch_execution_id.toString() }
+        name: 'batch-executions'
       })
     } else {
       ElMessage.error(result.message || '批量执行任务创建失败')
