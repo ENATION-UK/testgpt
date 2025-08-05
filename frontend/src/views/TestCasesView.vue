@@ -3,6 +3,10 @@
     <div class="page-header">
       <h2>测试用例管理</h2>
       <div class="header-actions">
+        <el-button type="info" @click="goToCategories">
+          <el-icon><Folder /></el-icon>
+          分类管理
+        </el-button>
         <el-button type="success" @click="showImportDialog = true">
           <el-icon><Upload /></el-icon>
           导入Excel
@@ -18,6 +22,44 @@
       </div>
     </div>
 
+    <!-- 分类筛选 -->
+    <el-card style="margin-bottom: 20px;">
+      <div class="filter-section">
+        <el-form :model="filterForm" inline>
+          <el-form-item label="分类筛选">
+            <el-cascader
+              v-model="filterForm.category_id"
+              :options="categoryOptions"
+              :props="cascaderProps"
+              placeholder="请选择分类"
+              clearable
+              style="width: 300px"
+              @change="handleCategoryChange"
+            />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="filterForm.status" placeholder="请选择状态" clearable>
+              <el-option label="激活" value="active" />
+              <el-option label="非激活" value="inactive" />
+              <el-option label="草稿" value="draft" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="优先级">
+            <el-select v-model="filterForm.priority" placeholder="请选择优先级" clearable>
+              <el-option label="低" value="low" />
+              <el-option label="中" value="medium" />
+              <el-option label="高" value="high" />
+              <el-option label="紧急" value="critical" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="applyFilters">筛选</el-button>
+            <el-button @click="resetFilters">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </el-card>
+
     <el-card>
       <el-table
         v-loading="loading"
@@ -27,7 +69,11 @@
       >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="名称" min-width="200" />
-        <el-table-column prop="category" label="分类" width="120" />
+        <el-table-column label="分类" width="120">
+          <template #default="{ row }">
+            {{ getCategoryName(row.category_id) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority)">
@@ -135,7 +181,7 @@
             <el-option
               v-for="testCase in testCases"
               :key="testCase.id"
-              :label="`${testCase.name} (${testCase.category || '未分类'})`"
+              :label="`${testCase.name} (${getCategoryName(testCase.category_id)})`"
               :value="testCase.id"
             />
           </el-select>
@@ -164,9 +210,9 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, ArrowDown, Upload, Operation } from '@element-plus/icons-vue'
-import { testCaseApi, testExecutionApi, batchExecutionApi } from '@/services/api'
-import type { TestCase } from '@/types/api'
+import { Plus, ArrowDown, Upload, Operation, Folder } from '@element-plus/icons-vue'
+import { testCaseApi, testExecutionApi, batchExecutionApi, categoryApi } from '@/services/api'
+import type { TestCase, Category } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
 import ViewTestCaseDialog from '@/components/ViewTestCaseDialog.vue'
 import EditTestCaseDialog from '@/components/EditTestCaseDialog.vue'
@@ -181,6 +227,23 @@ const showEditDialog = ref(false)
 const showImportDialog = ref(false) // Added for import dialog
 const showBatchExecuteDialog = ref(false) // Added for batch execute dialog
 const selectedTestCase = ref<TestCase | null>(null)
+
+// 分类相关
+const categoryOptions = ref<Category[]>([])
+const filterForm = ref({
+  category_id: null as number | null,
+  status: '',
+  priority: ''
+})
+
+// 级联选择器配置
+const cascaderProps = {
+  value: 'id',
+  label: 'name',
+  children: 'children',
+  checkStrictly: false,
+  emitPath: false
+}
 
 // 批量执行相关
 const batchExecuteForm = ref({
@@ -200,7 +263,10 @@ const loadTestCases = async () => {
     const skip = (currentPage.value - 1) * pageSize.value
     const data = await testCaseApi.getList({
       skip,
-      limit: pageSize.value
+      limit: pageSize.value,
+      category_id: filterForm.value.category_id || undefined,
+      status: filterForm.value.status || undefined,
+      priority: filterForm.value.priority || undefined
     })
     testCases.value = data
     // 注意：由于后端API没有返回总数，这里暂时使用当前页数据长度
@@ -211,6 +277,68 @@ const loadTestCases = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 加载分类树
+const loadCategoryTree = async () => {
+  try {
+    categoryOptions.value = await categoryApi.getTree(false)
+  } catch (error) {
+    ElMessage.error('加载分类树失败')
+  }
+}
+
+// 跳转到分类管理页面
+const goToCategories = () => {
+  router.push('/categories')
+}
+
+// 处理分类变化
+const handleCategoryChange = (value: number | number[] | null) => {
+  if (Array.isArray(value)) {
+    filterForm.value.category_id = value.length > 0 ? value[value.length - 1] : null
+  } else {
+    filterForm.value.category_id = value
+  }
+}
+
+// 应用筛选
+const applyFilters = () => {
+  currentPage.value = 1
+  loadTestCases()
+}
+
+// 重置筛选
+const resetFilters = () => {
+  filterForm.value = {
+    category_id: null,
+    status: '',
+    priority: ''
+  }
+  currentPage.value = 1
+  loadTestCases()
+}
+
+// 根据分类ID获取分类名称
+const getCategoryName = (categoryId: number | undefined): string => {
+  if (!categoryId) return '未分类'
+  
+  // 递归查找分类名称
+  const findCategoryName = (categories: Category[], targetId: number): string | null => {
+    for (const category of categories) {
+      if (category.id === targetId) {
+        return category.name
+      }
+      if (category.children) {
+        const found = findCategoryName(category.children, targetId)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  
+  const categoryName = findCategoryName(categoryOptions.value, categoryId)
+  return categoryName || '未知分类'
 }
 
 const handleSizeChange = (newSize: number) => {
@@ -400,6 +528,7 @@ const formatDate = (dateString: string): string => {
 
 onMounted(() => {
   loadTestCases()
+  loadCategoryTree()
 })
 </script>
 

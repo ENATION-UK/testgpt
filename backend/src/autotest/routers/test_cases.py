@@ -21,6 +21,7 @@ async def get_test_cases(
     limit: int = 100,
     status: Optional[str] = None,
     category: Optional[str] = None,
+    category_id: Optional[int] = None,
     priority: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -31,6 +32,16 @@ async def get_test_cases(
         query = query.filter(TestCase.status == status)
     if category:
         query = query.filter(TestCase.category == category)
+    if category_id:
+        # 支持按分类ID查询，包括子分类下的测试用例
+        from ..services.category_service import CategoryService
+        category_service = CategoryService(db)
+        test_case_ids = category_service.get_category_test_cases(category_id, include_children=True)
+        if test_case_ids:
+            query = query.filter(TestCase.id.in_(test_case_ids))
+        else:
+            # 如果没有找到任何测试用例，返回空列表
+            return []
     if priority:
         query = query.filter(TestCase.priority == priority)
     

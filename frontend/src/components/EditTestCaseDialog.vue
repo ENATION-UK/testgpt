@@ -42,11 +42,14 @@
         />
       </el-form-item>
 
-      <el-form-item label="分类" prop="category">
-        <el-input
-          v-model="form.category"
-          placeholder="请输入测试用例分类"
-          maxlength="50"
+      <el-form-item label="分类" prop="category_id">
+        <el-cascader
+          v-model="form.category_id"
+          :options="categoryOptions"
+          :props="cascaderProps"
+          placeholder="请选择分类"
+          clearable
+          style="width: 100%"
         />
       </el-form-item>
 
@@ -111,11 +114,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { testCaseApi } from '@/services/api'
-import type { TestCase } from '@/types/api'
+import { testCaseApi, categoryApi } from '@/services/api'
+import type { TestCase, Category } from '@/types/api'
 
 interface Props {
   modelValue: boolean
@@ -144,11 +147,24 @@ const form = ref({
   description: '',
   task_content: '',
   category: '',
+  category_id: undefined as number | undefined,
   priority: 'medium',
   status: 'active',
   tags: [] as string[],
   expected_result: ''
 })
+
+// 分类相关
+const categoryOptions = ref<Category[]>([])
+
+// 级联选择器配置
+const cascaderProps = {
+  value: 'id',
+  label: 'name',
+  children: 'children',
+  checkStrictly: false,
+  emitPath: false
+}
 
 const rules: FormRules = {
   name: [
@@ -158,8 +174,8 @@ const rules: FormRules = {
   task_content: [
     { required: true, message: '请输入任务内容', trigger: 'blur' }
   ],
-  category: [
-    { required: true, message: '请输入分类', trigger: 'blur' }
+  category_id: [
+    { required: false, message: '请选择分类', trigger: 'change' }
   ],
   priority: [
     { required: true, message: '请选择优先级', trigger: 'change' }
@@ -177,11 +193,13 @@ watch(() => props.testCase, (newTestCase) => {
       description: newTestCase.description || '',
       task_content: newTestCase.task_content || '',
       category: newTestCase.category || '',
+      category_id: newTestCase.category_id || undefined,
       priority: newTestCase.priority || 'medium',
       status: newTestCase.status || 'active',
       tags: [...(newTestCase.tags || [])],
       expected_result: newTestCase.expected_result || ''
     }
+    console.log('填充表单数据:', form.value)
   }
 }, { immediate: true })
 
@@ -204,6 +222,15 @@ const handleClose = () => {
   visible.value = false
 }
 
+// 加载分类树
+const loadCategoryTree = async () => {
+  try {
+    categoryOptions.value = await categoryApi.getTree(false)
+  } catch (error) {
+    ElMessage.error('加载分类树失败')
+  }
+}
+
 const handleSubmit = async () => {
   if (!formRef.value || !props.testCase) return
 
@@ -211,18 +238,31 @@ const handleSubmit = async () => {
     await formRef.value.validate()
     loading.value = true
 
-    await testCaseApi.update(props.testCase.id, form.value)
+    // 处理级联选择器返回的数据格式
+    const submitData = { ...form.value }
+    
+    // 如果category_id是数组（级联选择器返回的格式），取最后一个值
+    if (Array.isArray(submitData.category_id)) {
+      submitData.category_id = submitData.category_id.length > 0 
+        ? submitData.category_id[submitData.category_id.length - 1] 
+        : undefined
+    }
+
+    await testCaseApi.update(props.testCase.id, submitData)
     ElMessage.success('更新成功')
     emit('updated')
     visible.value = false
   } catch (error) {
-    if (error !== false) {
-      ElMessage.error('更新失败')
-    }
+    console.error('更新测试用例失败:', error)
+    ElMessage.error('更新失败')
   } finally {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  loadCategoryTree()
+})
 </script>
 
 <style scoped>

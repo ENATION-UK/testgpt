@@ -61,6 +61,7 @@ class TestCase(Base):
     status = Column(String(50), default="active", comment="状态: active, inactive, draft")
     priority = Column(String(20), default="medium", comment="优先级: low, medium, high, critical")
     category = Column(String(100), comment="测试分类")
+    category_id = Column(Integer, ForeignKey("category.id"), nullable=True, comment="分类ID")
     tags = Column(JSON, comment="标签列表")
     expected_result = Column(Text, comment="预期结果")
     created_at = Column(DateTime, default=beijing_now, comment="创建时间")
@@ -69,6 +70,7 @@ class TestCase(Base):
     
     # 关联关系
     executions = relationship("TestExecution", back_populates="test_case")
+    category_obj = relationship("Category", back_populates="test_cases")
 
 # 测试执行记录模型
 class TestExecution(Base):
@@ -115,6 +117,25 @@ class TestStep(Base):
     
     # 关联关系
     execution = relationship("TestExecution", back_populates="steps")
+
+# 分类模型 - 支持多级无限级分类
+class Category(Base):
+    __tablename__ = "category"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="主键ID")
+    name = Column(String(100), nullable=False, comment="分类名称")
+    description = Column(Text, comment="分类描述")
+    parent_id = Column(Integer, ForeignKey("category.id"), nullable=True, comment="父分类ID")
+    level = Column(Integer, default=0, comment="分类层级")
+    sort_order = Column(Integer, default=0, comment="排序顺序")
+    is_active = Column(Boolean, default=True, comment="是否激活")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
+    updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
+    is_deleted = Column(Boolean, default=False, comment="是否删除")
+    
+    # 关联关系
+    parent = relationship("Category", remote_side=[id], backref="children")
+    test_cases = relationship("TestCase", back_populates="category_obj")
 
 # 批量执行任务模型
 class BatchExecution(Base):

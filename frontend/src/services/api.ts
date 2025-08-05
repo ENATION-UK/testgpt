@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution } from '@/types/api'
+import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution, Category, CategoryCreate, CategoryUpdate } from '@/types/api'
 
 const api = axios.create({
   baseURL: '/api',
@@ -34,7 +34,7 @@ api.interceptors.response.use(
 // 测试用例相关API
 export const testCaseApi = {
   // 获取测试用例列表
-  getList: (params?: { skip?: number; limit?: number; status?: string; category?: string; priority?: string }) => 
+  getList: (params?: { skip?: number; limit?: number; status?: string; category?: string; category_id?: number; priority?: string }) => 
     api.get<TestCase[]>('/test-cases', { params }) as unknown as Promise<TestCase[]>,
   
   // 获取单个测试用例
@@ -94,6 +94,37 @@ export const batchExecutionApi = {
 export const statisticsApi = {
   // 获取统计信息
   getStatistics: () => api.get<Statistics>('/statistics') as unknown as Promise<Statistics>
+}
+
+// 分类管理相关API
+export const categoryApi = {
+  // 获取分类列表
+  getList: (params?: { parent_id?: number; include_inactive?: boolean }) => 
+    api.get<Category[]>('/categories', { params }) as unknown as Promise<Category[]>,
+  
+  // 获取分类树形结构
+  getTree: (include_inactive?: boolean) => 
+    api.get<Category[]>('/categories/tree', { params: { include_inactive } }) as unknown as Promise<Category[]>,
+  
+  // 获取单个分类
+  getById: (id: number) => api.get<Category>(`/categories/${id}`) as unknown as Promise<Category>,
+  
+  // 获取分类及其子分类
+  getWithChildren: (id: number, include_inactive?: boolean) => 
+    api.get<Category>(`/categories/${id}/with-children`, { params: { include_inactive } }) as unknown as Promise<Category>,
+  
+  // 创建分类
+  create: (data: CategoryCreate) => api.post<Category>('/categories', data) as unknown as Promise<Category>,
+  
+  // 更新分类
+  update: (id: number, data: CategoryUpdate) => api.put<Category>(`/categories/${id}`, data) as unknown as Promise<Category>,
+  
+  // 删除分类
+  delete: (id: number, force?: boolean) => api.delete(`/categories/${id}`, { params: { force } }) as unknown as Promise<void>,
+  
+  // 获取分类下的测试用例ID列表
+  getTestCases: (id: number, include_children?: boolean) => 
+    api.get<{ category_id: number; include_children: boolean; test_case_ids: number[]; count: number }>(`/categories/${id}/test-cases`, { params: { include_children } }) as unknown as Promise<{ category_id: number; include_children: boolean; test_case_ids: number[]; count: number }>
 }
 
 // 模型配置相关API

@@ -2,15 +2,46 @@
 export interface TestCase {
   id: number
   name: string
-  description: string
+  description?: string
   task_content: string
-  status: 'active' | 'inactive' | 'draft'
-  priority: 'low' | 'medium' | 'high' | 'critical'
-  category: string
-  tags: string[]
-  expected_result: string
-  created_at: string
-  updated_at: string
+  status: string
+  priority: string
+  category?: string
+  category_id?: number
+  tags?: string[]
+  expected_result?: string
+  created_at?: string
+  updated_at?: string
+}
+
+// 分类相关类型
+export interface Category {
+  id: number
+  name: string
+  description?: string
+  parent_id?: number
+  level: number
+  sort_order: number
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+  children?: Category[]
+  test_case_count?: number
+}
+
+export interface CategoryCreate {
+  name: string
+  description?: string
+  parent_id?: number
+  sort_order?: number
+}
+
+export interface CategoryUpdate {
+  name?: string
+  description?: string
+  parent_id?: number
+  sort_order?: number
+  is_active?: boolean
 }
 
 // 测试执行记录类型定义

@@ -14,6 +14,7 @@ class TestCaseCreate(BaseModel):
     status: str = "active"
     priority: str = "medium"
     category: Optional[str] = None
+    category_id: Optional[int] = None
     tags: Optional[List[str]] = None
     expected_result: Optional[str] = None
 
@@ -24,6 +25,7 @@ class TestCaseUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     category: Optional[str] = None
+    category_id: Optional[int] = None
     tags: Optional[List[str]] = None
     expected_result: Optional[str] = None
 
@@ -35,6 +37,7 @@ class TestCaseResponse(BaseModel):
     status: str
     priority: str
     category: Optional[str] = None
+    category_id: Optional[int] = None
     tags: Optional[List[str]] = None
     expected_result: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -42,6 +45,41 @@ class TestCaseResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# 分类相关模型
+class CategoryCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    parent_id: Optional[int] = None
+    sort_order: int = 0
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    parent_id: Optional[int] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    parent_id: Optional[int] = None
+    level: int
+    sort_order: int
+    is_active: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    children: Optional[List['CategoryResponse']] = []
+    test_case_count: Optional[int] = 0
+
+    class Config:
+        from_attributes = True
+
+# 分类树形结构响应
+class CategoryTreeResponse(BaseModel):
+    categories: List[CategoryResponse]
+    total_count: int
 
 # 测试执行相关模型
 class TestExecutionRequest(BaseModel):
