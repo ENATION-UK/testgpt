@@ -241,7 +241,7 @@ const cascaderProps = {
   value: 'id',
   label: 'name',
   children: 'children',
-  checkStrictly: false,
+  checkStrictly: true, // 允许选择父分类
   emitPath: false
 }
 
@@ -296,8 +296,10 @@ const goToCategories = () => {
 // 处理分类变化
 const handleCategoryChange = (value: number | number[] | null) => {
   if (Array.isArray(value)) {
+    // 当 checkStrictly: true 时，value 可能是数组，取最后一个值
     filterForm.value.category_id = value.length > 0 ? value[value.length - 1] : null
   } else {
+    // 当 checkStrictly: true 时，value 也可能是单个值
     filterForm.value.category_id = value
   }
 }
