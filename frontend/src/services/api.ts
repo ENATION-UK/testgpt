@@ -156,4 +156,19 @@ export const promptConfigApi = {
   updateConfig: (config: PromptConfig) => api.put<PromptConfigResponse>('/prompt-config', config) as unknown as Promise<PromptConfigResponse>
 }
 
+// 多模型配置相关API
+export const multiModelConfigApi = {
+  // 获取多模型配置
+  getConfig: () => api.get('/multi-model/config') as unknown as Promise<any>,
+  
+  // 更新多模型配置
+  updateConfig: (config: any) => api.put('/multi-model/config', config) as unknown as Promise<any>,
+  
+  // 获取配置状态
+  getStatus: () => api.get('/multi-model/status') as unknown as Promise<any>,
+  
+  // 测试多模型配置
+  testConfig: () => api.post('/multi-model/test') as unknown as Promise<any>
+}
+
 export default api

@@ -40,6 +40,11 @@ const router = createRouter({
       component: () => import('../views/ModelSettingsView.vue')
     },
     {
+      path: '/multi-model-settings',
+      name: 'multi-model-settings',
+      component: () => import('../views/MultiModelSettingsView.vue')
+    },
+    {
       path: '/prompt-settings',
       name: 'prompt-settings',
       component: () => import('../views/PromptSettingsView.vue')

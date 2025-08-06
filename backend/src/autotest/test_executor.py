@@ -19,8 +19,8 @@ def beijing_now():
     """获取北京时间"""
     return datetime.now(BEIJING_TZ)
 
-from browser_use.llm import ChatDeepSeek
 from browser_use.controller.service import Controller
+from .services.multi_llm_service import MultiLLMService
 from playwright.async_api import async_playwright
 
 from .database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
@@ -90,26 +90,13 @@ class TestExecutor:
         初始化测试执行器
         
         Args:
-            api_key: DeepSeek API密钥
+            api_key: DeepSeek API密钥（已废弃，现在使用多模型服务）
         """
-        # 尝试从配置文件读取设置
-        config = self._load_config()
-        
-        self.api_key = api_key or config.get("api_key") or ""
-        self.model_type = config.get("model_type", "deepseek")
-        self.base_url = config.get("base_url", "https://api.deepseek.com/v1")
-        
-        # 初始化LLM
-        self.llm = ChatDeepSeek(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            model="deepseek-chat",
-            temperature=0.1,
-            max_tokens=4000
-        )
+        # 初始化多模型服务
+        self.multi_llm_service = MultiLLMService()
         
         # 初始化测试控制器
-        self.test_controller = Controller()
+        self.test_controller = Controller(output_model=TestResult)
         
         # 设置日志
         self.logger = logging.getLogger(__name__)
@@ -302,9 +289,18 @@ class TestExecutor:
                 # 使用Browser Use Agent
                 from browser_use import Agent
                 
+                # 使用多模型服务创建LLM实例
+                config = self.multi_llm_service._load_multi_model_config()
+                request_config = self.multi_llm_service._get_next_available_config(config)
+                print(f"使用API key:{request_config.model_type}-- {request_config.api_key}")
+                if not request_config:
+                    raise Exception("没有可用的API key配置")
+                
+                llm = self.multi_llm_service._create_llm_instance(request_config)
+                
                 agent = Agent(
                     task=test_case.task_content,
-                    llm=self.llm,
+                    llm=llm,
                     page=page,
                     use_vision=True,
                     save_conversation_path=f'/tmp/test_execution_{execution.id}',

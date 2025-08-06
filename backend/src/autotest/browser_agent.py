@@ -87,8 +87,7 @@ class BrowserAgent:
             return ChatOpenAI(
                 model=self.model,
                 api_key=self.api_key,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens
+                temperature=self.temperature
             )
         else:
             raise ValueError(f"不支持的模型类型: {self.model_type}")

@@ -172,4 +172,42 @@ class PromptConfig(BaseModel):
 class PromptConfigResponse(BaseModel):
     """提示词配置响应"""
     custom_prompt: str
-    is_valid: bool = Field(description="配置是否有效") 
+    is_valid: bool = Field(description="配置是否有效")
+
+# 多模型配置相关模型
+class ModelProviderConfig(BaseModel):
+    """单个模型提供商配置"""
+    provider_id: str = Field(description="提供商ID，唯一标识")
+    provider_name: str = Field(description="提供商名称")
+    model_type: str = Field(description="模型类型: deepseek, openai")
+    base_url: str = Field(description="API基础URL")
+    model: str = Field(description="模型名称")
+    temperature: float = Field(default=0.7, description="温度参数")
+    max_tokens: Optional[int] = Field(default=None, description="最大token数")
+    api_keys: List[str] = Field(description="API密钥列表")
+    rate_limit: int = Field(default=2, description="限流数量")
+    is_active: bool = Field(default=True, description="是否启用")
+    current_key_index: int = Field(default=0, description="当前使用的密钥索引")
+
+class MultiModelConfig(BaseModel):
+    """多模型配置"""
+    providers: List[ModelProviderConfig] = Field(description="模型提供商配置列表")
+    current_provider_index: int = Field(default=0, description="当前使用的提供商索引")
+
+class MultiModelConfigResponse(BaseModel):
+    """多模型配置响应"""
+    providers: List[ModelProviderConfig]
+    current_provider_index: int
+    total_providers: int
+    total_api_keys: int
+    is_valid: bool = Field(description="配置是否有效")
+
+class LLMRequestConfig(BaseModel):
+    """LLM请求配置"""
+    provider_id: str
+    model_type: str
+    api_key: str
+    base_url: str
+    model: str
+    temperature: float
+    max_tokens: Optional[int] = None 

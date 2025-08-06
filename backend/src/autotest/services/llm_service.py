@@ -8,11 +8,11 @@ import re
 import pandas as pd
 from typing import List, Dict, Any
 
-from browser_use.llm.deepseek.chat import ChatDeepSeek
 from browser_use.llm.messages import SystemMessage, UserMessage, ContentPartTextParam
 
 from ..config_manager import ConfigManager
 from .excel_utils import convert_excel_to_test_cases
+from .multi_llm_service import MultiLLMService
 
 class LLMService:
     """LLM服务类"""
@@ -53,12 +53,13 @@ class LLMService:
     async def analyze_excel_with_llm(df: pd.DataFrame, import_options: dict) -> List[dict]:
         """使用大模型分析Excel内容并转换为测试用例格式"""
         try:
-            # 加载模型配置
-            config = LLMService._load_model_config()
+            # 使用多模型服务
+            multi_llm_service = MultiLLMService()
             
             # 检查配置有效性
-            if not config.get("api_key"):
-                print("警告: 模型配置中缺少API密钥，使用备用转换逻辑")
+            config_response = await multi_llm_service.get_multi_model_config()
+            if not config_response.is_valid:
+                print("警告: 多模型配置无效，使用备用转换逻辑")
                 return convert_excel_to_test_cases(df, import_options)
 
             # 将DataFrame转换为字符串格式
@@ -94,34 +95,14 @@ Excel内容：
             print("即将发送给大模型的提示词如下：")
             print(prompt)
 
-            # 根据模型类型创建相应的聊天实例
-            if config.get("model_type") == "deepseek":
-                # 创建DeepSeek聊天实例
-                chat_config = {
-                    'base_url': config.get('base_url', 'https://api.deepseek.com/v1'),
-                    'model': config.get('model', 'deepseek-chat'),
-                    'api_key': config.get('api_key'),
-                }
-                
-                # 添加可选参数
-                if config.get('temperature') is not None:
-                    chat_config['temperature'] = config.get('temperature')
-                if config.get('max_tokens') is not None:
-                    chat_config['max_tokens'] = config.get('max_tokens')
-                
-                deepseek_chat = ChatDeepSeek(**chat_config)
-                
-                messages = [
-                    SystemMessage(content=[ContentPartTextParam(text="你是一个测试用例分析专家")]),
-                    UserMessage(content=prompt)
-                ]
-                
-                print("🚀 调用大模型...")
-                response = await deepseek_chat.ainvoke(messages)
-                llm_response = response.completion
-                
-            else:
-                raise Exception(f"暂不支持的模型类型: {config.get('model_type')}")
+            # 创建消息
+            messages = [
+                SystemMessage(content=[ContentPartTextParam(text="你是一个测试用例分析专家")]),
+                UserMessage(content=prompt)
+            ]
+            
+            print("🚀 调用多模型服务...")
+            llm_response = await multi_llm_service.chat_completion(messages)
             
             # 解析响应
             try:

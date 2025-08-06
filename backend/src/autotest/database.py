@@ -26,21 +26,25 @@ SQLITE_DATABASE_URL = "sqlite:///./autotest.db"
 USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() == "true"
 DATABASE_URL = MYSQL_DATABASE_URL if USE_MYSQL else SQLITE_DATABASE_URL
 
+# 控制SQL日志输出
+ENABLE_SQL_ECHO = os.getenv("ENABLE_SQL_ECHO", "false").lower() == "true"
+
 print(f"🔧 使用数据库: {'MySQL' if USE_MYSQL else 'SQLite'}")
 print(f"🔧 数据库URL: {DATABASE_URL}")
+print(f"🔧 SQL日志: {'开启' if ENABLE_SQL_ECHO else '关闭'}")
 
 # 创建数据库引擎
 if USE_MYSQL:
     engine = create_engine(
         DATABASE_URL,
-        echo=True,  # 显示SQL语句（开发环境）
+        echo=ENABLE_SQL_ECHO,  # 通过环境变量控制SQL语句显示
         pool_pre_ping=True,  # 连接前ping一下确保连接有效
         pool_recycle=3600,  # 连接回收时间（秒）
     )
 else:
     engine = create_engine(
         DATABASE_URL,
-        echo=True,  # 显示SQL语句（开发环境）
+        echo=ENABLE_SQL_ECHO,  # 通过环境变量控制SQL语句显示
         connect_args={"check_same_thread": False}  # SQLite需要这个参数
     )
 
