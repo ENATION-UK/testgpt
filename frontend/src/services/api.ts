@@ -2,7 +2,7 @@ import axios from 'axios'
 import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution, Category, CategoryCreate, CategoryUpdate } from '@/types/api'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/` : '/api/',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'

@@ -12,6 +12,10 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - USE_MYSQL=false
+      - DISPLAY=:99
+      - PLAYWRIGHT_BROWSERS_PATH=/home/playwright/.cache/ms-playwright
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+    shm_size: '2gb'
     volumes:
       - ../backend:/app
       - ./data:/app/data
@@ -22,6 +26,8 @@ services:
     build:
       context: ../frontend
       dockerfile: ../docker/Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
     ports:
       - "3000:3000"
     environment:

@@ -1,21 +1,9 @@
-FROM python:3.11-slim
+FROM autotest-base:latest
 
-# 设置时区
-ENV TZ=Asia/Shanghai
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-WORKDIR /app
-
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# 设置代理环境变量
+ENV https_proxy=http://192.168.2.99:7012
+ENV http_proxy=http://192.168.2.99:7012
+ENV all_proxy=socks5://192.168.2.99:7012
 
 # 复制依赖文件
 COPY pyproject.toml uv.lock ./
@@ -23,14 +11,11 @@ COPY pyproject.toml uv.lock ./
 # 安装Python依赖
 RUN pip install --no-cache-dir -e .
 
-# 安装Playwright
-RUN playwright install chromium
-
 # 复制应用代码
 COPY . .
 
 # 暴露端口
 EXPOSE 8000
 
-# 启动命令
-CMD ["python", "run.py"] 
+# 启动命令 - 使用bash直接执行
+CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 2 && python run.py"] 

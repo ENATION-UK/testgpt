@@ -1,0 +1,68 @@
+FROM python:3.11-slim
+
+# 设置代理环境变量
+ENV https_proxy=http://192.168.2.99:7012
+ENV http_proxy=http://192.168.2.99:7012
+ENV all_proxy=socks5://192.168.2.99:7012
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    libglib2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxkbcommon0 \
+    libasound2 \
+    xvfb \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建非root用户
+RUN groupadd -r playwright && useradd -r -g playwright -G audio,video playwright \
+    && mkdir -p /home/playwright/Downloads \
+    && mkdir -p /home/playwright/.cache \
+    && chown -R playwright:playwright /home/playwright
+
+# 安装Playwright
+RUN pip install playwright
+
+# 安装Playwright浏览器（以root用户身份）
+RUN playwright install chromium
+RUN playwright install-deps
+RUN playwright install
+
+# 设置Playwright环境变量
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/playwright/.cache/ms-playwright
+ENV DISPLAY=:99
+
+# 确保浏览器文件权限正确
+RUN chown -R playwright:playwright /home/playwright/.cache/ || true
+
+# 验证浏览器安装
+RUN ls -la /home/playwright/.cache/ms-playwright/ || echo "Browser directory not found"
+
+# 切换到playwright用户
+USER playwright
+
+# 验证浏览器在playwright用户下是否可用
+RUN playwright --version
+
+# 设置工作目录
+WORKDIR /app
+
+# 标记为基础镜像
+LABEL description="AutoTest Base Image with Python, Playwright and all dependencies" 
