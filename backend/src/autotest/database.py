@@ -68,6 +68,8 @@ class TestCase(Base):
     category_id = Column(Integer, ForeignKey("category.id"), nullable=True, comment="分类ID")
     tags = Column(JSON, comment="标签列表")
     expected_result = Column(Text, comment="预期结果")
+    history_path = Column(String(500), comment="历史记录文件路径")
+    history_updated_at = Column(DateTime, comment="历史记录更新时间")
     created_at = Column(DateTime, default=beijing_now, comment="创建时间")
     updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
     is_deleted = Column(Boolean, default=False, comment="是否删除")

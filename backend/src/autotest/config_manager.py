@@ -41,3 +41,9 @@ class ConfigManager:
     def get_prompt_config_path(self) -> Path:
         """获取提示词配置文件路径"""
         return self.config_dir / "prompt_config.json"
+    
+    def get_history_directory(self) -> Path:
+        """获取 history 缓存目录路径"""
+        history_dir = self.config_dir / "history"
+        history_dir.mkdir(parents=True, exist_ok=True)
+        return history_dir
