@@ -97,6 +97,12 @@ RUN playwright --version
 # 设置工作目录
 WORKDIR /app
 
+# 设置Docker环境标识
+ENV DOCKER_ENV=true
+
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data && chown -R playwright:playwright /app/data
+
 # 复制依赖文件
 COPY pyproject.toml uv.lock ./
 
