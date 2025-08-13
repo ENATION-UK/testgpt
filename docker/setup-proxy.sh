@@ -6,9 +6,9 @@
 echo "正在配置Docker代理..."
 
 # 设置代理环境变量
-export https_proxy=http://192.168.2.99:7012
-export http_proxy=http://192.168.2.99:7012
-export all_proxy=socks5://192.168.2.99:7012
+export https_proxy=http://192.168.2.210:7012
+export http_proxy=http://192.168.2.210:7012
+export all_proxy=socks5://192.168.2.210:7012
 
 echo "代理环境变量已设置:"
 echo "  http_proxy: $http_proxy"
@@ -24,8 +24,8 @@ cat > "$DOCKER_CONFIG_DIR/config.json" << EOF
 {
   "proxies": {
     "default": {
-      "httpProxy": "http://192.168.2.99:7012",
-      "httpsProxy": "http://192.168.2.99:7012",
+      "httpProxy": "http://192.168.2.210:7012",
+      "httpsProxy": "http://192.168.2.210:7012",
       "noProxy": "localhost,127.0.0.1,::1"
     }
   }

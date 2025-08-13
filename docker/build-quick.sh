@@ -8,9 +8,9 @@ echo "时间: $(date)"
 echo ""
 
 # 设置代理环境变量
-export https_proxy=http://192.168.2.99:7012
-export http_proxy=http://192.168.2.99:7012
-export all_proxy=socks5://192.168.2.99:7012
+export https_proxy=http://192.168.2.210:7012
+export http_proxy=http://192.168.2.210:7012
+export all_proxy=socks5://192.168.2.210:7012
 
 # 检查基础镜像是否存在
 echo "1. 检查基础镜像..."

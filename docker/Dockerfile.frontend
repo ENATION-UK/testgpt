@@ -1,9 +1,9 @@
 FROM node:18-alpine
 
 # 设置代理环境变量
-ENV https_proxy=http://192.168.2.99:7012
-ENV http_proxy=http://192.168.2.99:7012
-ENV all_proxy=socks5://192.168.2.99:7012
+ENV https_proxy=http://192.168.2.210:7012
+ENV http_proxy=http://192.168.2.210:7012
+ENV all_proxy=socks5://192.168.2.210:7012
 
 # 设置API基础URL（构建时使用）
 ARG VITE_API_BASE_URL=http://localhost:8000
