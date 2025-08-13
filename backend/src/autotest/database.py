@@ -7,6 +7,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone, timedelta
 import os
+import pathlib
+from .config_manager import ConfigManager
 
 # 设置时区为北京时间
 BEIJING_TZ = timezone(timedelta(hours=8))
@@ -15,23 +17,64 @@ def beijing_now():
     """获取北京时间"""
     return datetime.now(BEIJING_TZ)
 
-# 数据库连接配置
+# 数据库配置管理
+class DatabaseConfig:
+    """数据库配置管理器"""
+    
+    def __init__(self):
+        self.config_manager = ConfigManager()
+        self.db_dir = self._get_database_directory()
+        self.db_name = os.getenv("DB_NAME", "autotest.db")
+        self.db_path = self.db_dir / self.db_name
+        
+    def _get_database_directory(self) -> pathlib.Path:
+        """获取数据库目录路径"""
+        # 优先使用环境变量配置的数据库目录
+        if os.getenv("DATA_DIR"):
+            db_dir = pathlib.Path(os.getenv("DATA_DIR"))
+        else:
+            # 使用配置管理器的数据目录
+            db_dir = self.config_manager.get_data_directory()
+        
+        # 确保目录存在
+        db_dir.mkdir(parents=True, exist_ok=True)
+        return db_dir
+    
+    def get_database_url(self) -> str:
+        """获取数据库连接URL"""
+        return f"sqlite:///{self.db_path}"
+    
+    def ensure_database_directory(self):
+        """确保数据库目录存在并有正确权限"""
+        self.db_dir.mkdir(parents=True, exist_ok=True)
+        # 在Docker环境中，确保目录可写
+        if os.getenv("DOCKER_ENV"):
+            try:
+                # 尝试设置目录权限为755
+                self.db_dir.chmod(0o755)
+            except Exception:
+                pass  # 忽略权限设置错误
+
+# 创建数据库配置实例
+db_config = DatabaseConfig()
+
 # MySQL配置
 MYSQL_DATABASE_URL = "mysql+pymysql://root:12346@192.168.2.153:3306/autotest"
 
-# SQLite配置（本地开发用）
-SQLITE_DATABASE_URL = "sqlite:///./autotest.db"
-
 # 根据环境选择数据库
 USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() == "true"
-DATABASE_URL = MYSQL_DATABASE_URL if USE_MYSQL else SQLITE_DATABASE_URL
+DATABASE_URL = MYSQL_DATABASE_URL if USE_MYSQL else db_config.get_database_url()
 
 # 控制SQL日志输出
 ENABLE_SQL_ECHO = os.getenv("ENABLE_SQL_ECHO", "false").lower() == "true"
 
 print(f"🔧 使用数据库: {'MySQL' if USE_MYSQL else 'SQLite'}")
 print(f"🔧 数据库URL: {DATABASE_URL}")
+print(f"🔧 数据库文件路径: {db_config.db_path}")
 print(f"🔧 SQL日志: {'开启' if ENABLE_SQL_ECHO else '关闭'}")
+
+# 确保数据库目录存在
+db_config.ensure_database_directory()
 
 # 创建数据库引擎
 if USE_MYSQL:
@@ -229,16 +272,62 @@ def test_connection():
 def create_tables():
     """创建数据库表"""
     try:
+        # 确保数据库目录存在
+        db_config.ensure_database_directory()
+        
+        # 检查数据库文件是否存在
+        if not db_config.db_path.exists():
+            print(f"📁 创建新的数据库文件: {db_config.db_path}")
+        
+        # 创建所有表
         Base.metadata.create_all(bind=engine)
         print("✅ 数据库表创建成功！")
+        
+        # 验证表是否真的创建了
+        with engine.connect() as connection:
+            from sqlalchemy import text, inspect
+            inspector = inspect(engine)
+            tables = inspector.get_table_names()
+            print(f"📋 已创建的表: {', '.join(tables)}")
+            
     except Exception as e:
         print(f"❌ 数据库表创建失败: {e}")
+        print(f"🔍 数据库路径: {db_config.db_path}")
+        print(f"🔍 数据库目录权限: {oct(db_config.db_dir.stat().st_mode)[-3:] if db_config.db_dir.exists() else '目录不存在'}")
+        raise
+
+def check_tables_exist():
+    """检查数据库表是否存在"""
+    try:
+        with engine.connect() as connection:
+            from sqlalchemy import text, inspect
+            inspector = inspect(engine)
+            tables = inspector.get_table_names()
+            required_tables = ['test_case', 'test_execution', 'test_step', 'category', 'batch_execution', 'test_suite', 'test_suite_case']
+            
+            missing_tables = [table for table in required_tables if table not in tables]
+            
+            if missing_tables:
+                print(f"⚠️  缺少以下表: {', '.join(missing_tables)}")
+                return False
+            else:
+                print(f"✅ 所有必需的表都存在: {', '.join(tables)}")
+                return True
+    except Exception as e:
+        print(f"❌ 检查表存在性失败: {e}")
+        return False
 
 def init_db():
     """初始化数据库"""
     try:
-        # 创建表
-        create_tables()
+        print(f"🚀 开始初始化数据库: {db_config.db_path}")
+        
+        # 检查表是否已存在
+        if check_tables_exist():
+            print("✅ 数据库表已存在，跳过创建")
+        else:
+            # 创建表
+            create_tables()
         
         # 插入一些测试数据
         db = SessionLocal()
@@ -314,9 +403,12 @@ def init_db():
             print(f"✅ 数据库中已有 {existing_count} 条记录")
         
         db.close()
+        print("✅ 数据库初始化完成！")
         
     except Exception as e:
         print(f"❌ 数据库初始化失败: {e}")
+        print(f"🔍 请检查数据库路径和权限: {db_config.db_path}")
+        raise
 
 if __name__ == "__main__":
     # 测试数据库连接
