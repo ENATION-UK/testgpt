@@ -718,7 +718,7 @@ class TestExecutor:
             from playwright.async_api import async_playwright
             async with async_playwright() as p:
                 browser = await p.chromium.launch(
-                    headless=False,
+                    headless=headless,
                     args=[
                         '--no-sandbox',
                         '--disable-setuid-sandbox',

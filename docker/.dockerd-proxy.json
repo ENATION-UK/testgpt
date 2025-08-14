@@ -1,9 +1,0 @@
-{
-  "proxies": {
-    "default": {
-      "httpProxy": "http://192.168.2.210:7012",
-      "httpsProxy": "http://192.168.2.210:7012",
-      "noProxy": "localhost,127.0.0.1,::1"
-    }
-  }
-}

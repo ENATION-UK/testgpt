@@ -1,9 +1,10 @@
 FROM node:18-alpine
 
 # 设置代理环境变量
-ENV https_proxy=http://192.168.2.210:7012
-ENV http_proxy=http://192.168.2.210:7012
-ENV all_proxy=socks5://192.168.2.210:7012
+ARG http_proxy
+ARG https_proxy
+ARG all_proxy
+
 
 # 设置时区
 ENV TZ=Asia/Shanghai
@@ -25,6 +26,11 @@ RUN npm run build
 
 # 安装serve
 RUN npm install -g serve
+
+RUN unset https_proxy http_proxy all_proxy HTTPS_PROXY HTTP_PROXY
+
+# 验证代理已被移除
+RUN env | grep -i proxy || echo "No proxy variables found"
 
 # 暴露端口
 EXPOSE 3000

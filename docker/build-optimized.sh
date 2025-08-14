@@ -28,12 +28,21 @@ fi
 echo "   ✓ Docker正在运行"
 echo ""
 
+echo "5. 停止正在运行的容器..."
+docker-compose -f docker/docker-compose.yml down > /dev/null 2>&1
+echo "   ✓ 已停止旧容器"
+echo ""
+
 # 构建基础镜像
 echo "3. 构建基础镜像 (autotest-base)..."
 echo "   这可能需要几分钟时间，但只需要构建一次..."
 echo ""
 
-if docker build -f docker/Dockerfile.base -t autotest-base:latest .; then
+if docker build  \
+  --build-arg http_proxy=http://192.168.2.210:7012 \
+  --build-arg https_proxy=http://192.168.2.210:7012 \
+  --build-arg all_proxy=socks5://192.168.2.210:7012 \
+  -f docker/Dockerfile.base -t autotest-base:latest .; then
     echo "   ✅ 基础镜像构建成功！"
     echo ""
 else
@@ -46,7 +55,11 @@ echo "4. 构建后端镜像..."
 echo "   基于基础镜像，构建速度会很快..."
 echo ""
 
-if docker build -f docker/Dockerfile.backend -t docker-backend:latest backend; then
+if docker build  \
+  --build-arg http_proxy=http://192.168.2.210:7012 \
+  --build-arg https_proxy=http://192.168.2.210:7012 \
+  --build-arg all_proxy=socks5://192.168.2.210:7012 \
+  -f docker/Dockerfile.backend -t docker-backend:latest backend; then
     echo "   ✅ 后端镜像构建成功！"
     echo ""
 else
@@ -54,34 +67,33 @@ else
     exit 1
 fi
 
-# 构建前端镜像
-echo "5. 构建前端镜像..."
-echo ""
+# # 构建前端镜像
+# echo "5. 构建前端镜像..."
+# echo ""
 
-if docker build -f docker/Dockerfile.frontend -t docker-frontend:latest \
-    --build-arg VITE_API_BASE_URL=http://localhost:8000 frontend; then
-    echo "   ✅ 前端镜像构建成功！"
-    echo ""
-else
-    echo "   ❌ 前端镜像构建失败"
-    exit 1
-fi
+# if docker build -f docker/Dockerfile.frontend -t docker-frontend:latest frontend; then
+#     echo "   ✅ 前端镜像构建成功！"
+#     echo ""
+# else
+#     echo "   ❌ 前端镜像构建失败"
+#     exit 1
+# fi
 
 # 启动服务
-echo "6. 启动服务..."
-if docker-compose -f docker/docker-compose.yml up -d; then
-    echo "   ✅ 服务启动成功！"
-    echo ""
-    echo "访问地址："
-    echo "  前端: http://localhost:3000"
-    echo "  后端: http://localhost:8000"
-    echo ""
-    echo "查看服务状态:"
-    docker-compose -f docker/docker-compose.yml ps
-else
-    echo "   ❌ 服务启动失败"
-    exit 1
-fi
+# echo "6. 启动服务..."
+# if docker-compose -f docker/docker-compose.yml up -d; then
+#     echo "   ✅ 服务启动成功！"
+#     echo ""
+#     echo "访问地址："
+#     echo "  前端: http://localhost:3000"
+#     echo "  后端: http://localhost:8000"
+#     echo ""
+#     echo "查看服务状态:"
+#     docker-compose -f docker/docker-compose.yml ps
+# else
+#     echo "   ❌ 服务启动失败"
+#     exit 1
+# fi
 
 echo ""
 echo "=== 构建完成 ==="
