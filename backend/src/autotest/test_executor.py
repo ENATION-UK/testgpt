@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 from pydantic import BaseModel, Field
 
 # 设置时区为北京时间
@@ -34,6 +34,270 @@ from playwright.async_api import async_playwright
 
 from .database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
 from .websocket_manager import websocket_manager
+
+# 任务上下文管理类
+class TaskContext:
+    """任务上下文管理类，用于维护正在运行的任务和浏览器对象"""
+    
+    def __init__(self):
+        # 批量任务ID -> 批量任务执行器实例
+        self._batch_executors: Dict[int, 'BatchTestExecutor'] = {}
+        # 批量任务ID -> 该任务下的所有测试用例ID集合
+        self._batch_test_cases: Dict[int, Set[int]] = {}
+        # 测试用例ID -> 浏览器对象
+        self._test_case_browsers: Dict[int, Any] = {}
+        # 测试用例ID -> 对应的任务
+        self._test_case_tasks: Dict[int, asyncio.Task] = {}
+        # 测试用例ID -> 所属的批量任务ID
+        self._test_case_batch_mapping: Dict[int, int] = {}
+        # 锁，用于保护并发访问
+        self._lock = asyncio.Lock()
+    
+    async def register_batch_executor(self, batch_execution_id: int, executor: 'BatchTestExecutor'):
+        """注册批量任务执行器"""
+        async with self._lock:
+            self._batch_executors[batch_execution_id] = executor
+            self._batch_test_cases[batch_execution_id] = set()
+            logging.info(f"注册批量任务执行器: {batch_execution_id}")
+            logging.info(f"当前批量任务执行器: {list(self._batch_executors.keys())}")
+            logging.info(f"当前批量任务测试用例映射: {self._batch_test_cases}")
+    
+    async def unregister_batch_executor(self, batch_execution_id: int):
+        """注销批量任务执行器"""
+        logging.info(f"=== 开始注销批量任务执行器: {batch_execution_id} ===")
+        try:
+            async with self._lock:
+                logging.info(f"步骤1: 获取锁成功，开始注销批量任务执行器: {batch_execution_id}")
+                logging.info(f"注销前状态:")
+                logging.info(f"  - 批量任务 {batch_execution_id} 在执行器中: {batch_execution_id in self._batch_executors}")
+                logging.info(f"  - 批量任务 {batch_execution_id} 在测试用例映射中: {batch_execution_id in self._batch_test_cases}")
+                
+                logging.info(f"步骤2: 从执行器上下文中移除批量任务: {batch_execution_id}")
+                if batch_execution_id in self._batch_executors:
+                    del self._batch_executors[batch_execution_id]
+                    logging.info(f"步骤2完成: 已从执行器上下文中移除批量任务: {batch_execution_id}")
+                else:
+                    logging.info(f"步骤2完成: 批量任务 {batch_execution_id} 不在执行器上下文中")
+                
+                logging.info(f"步骤3: 从测试用例映射中移除批量任务: {batch_execution_id}")
+                if batch_execution_id in self._batch_test_cases:
+                    del self._batch_test_cases[batch_execution_id]
+                    logging.info(f"步骤3完成: 已从测试用例映射中移除批量任务: {batch_execution_id}")
+                else:
+                    logging.info(f"步骤3完成: 批量任务 {batch_execution_id} 不在测试用例映射中")
+                
+                logging.info(f"步骤4: 注销批量任务执行器: {batch_execution_id} 完成")
+                logging.info(f"注销后状态:")
+                logging.info(f"  - 剩余批量任务执行器: {list(self._batch_executors.keys())}")
+                logging.info(f"  - 剩余批量任务测试用例映射: {self._batch_test_cases}")
+        except Exception as e:
+            logging.error(f"注销批量任务执行器 {batch_execution_id} 时出错: {e}")
+            logging.error(f"错误详情: {type(e).__name__}: {str(e)}")
+            import traceback
+            logging.error(f"错误堆栈: {traceback.format_exc()}")
+            raise
+        finally:
+            logging.info(f"=== 注销批量任务执行器: {batch_execution_id} 结束 ===")
+    
+    async def register_test_case(self, batch_execution_id: int, test_case_id: int, browser: Any, task: asyncio.Task):
+        """注册测试用例的执行上下文"""
+        async with self._lock:
+            self._batch_test_cases[batch_execution_id].add(test_case_id)
+            self._test_case_browsers[test_case_id] = browser
+            self._test_case_tasks[test_case_id] = task
+            self._test_case_batch_mapping[test_case_id] = batch_execution_id
+            logging.info(f"注册测试用例: {test_case_id} -> 批量任务: {batch_execution_id}")
+            logging.info(f"当前任务上下文状态:")
+            logging.info(f"  - 批量任务 {batch_execution_id} 下的测试用例: {self._batch_test_cases[batch_execution_id]}")
+            logging.info(f"  - 所有测试用例浏览器: {list(self._test_case_browsers.keys())}")
+            logging.info(f"  - 所有测试用例任务: {list(self._test_case_tasks.keys())}")
+            logging.info(f"  - 测试用例到批量任务的映射: {self._test_case_batch_mapping}")
+    
+    async def unregister_test_case(self, test_case_id: int):
+        """注销测试用例的执行上下文"""
+        logging.info(f"=== 开始注销测试用例: {test_case_id} ===")
+        try:
+            async with self._lock:
+                logging.info(f"步骤1: 获取锁成功，开始注销测试用例: {test_case_id}")
+                logging.info(f"注销前状态:")
+                logging.info(f"  - 测试用例 {test_case_id} 在浏览器中: {test_case_id in self._test_case_browsers}")
+                logging.info(f"  - 测试用例 {test_case_id} 在任务中: {test_case_id in self._test_case_tasks}")
+                logging.info(f"  - 测试用例 {test_case_id} 在批量任务映射中: {test_case_id in self._test_case_batch_mapping}")
+                
+                logging.info(f"步骤2: 从浏览器上下文中移除测试用例: {test_case_id}")
+                if test_case_id in self._test_case_browsers:
+                    del self._test_case_browsers[test_case_id]
+                    logging.info(f"步骤2完成: 已从浏览器上下文中移除测试用例: {test_case_id}")
+                else:
+                    logging.info(f"步骤2完成: 测试用例 {test_case_id} 不在浏览器上下文中")
+                
+                logging.info(f"步骤3: 从任务上下文中移除测试用例: {test_case_id}")
+                if test_case_id in self._test_case_tasks:
+                    del self._test_case_tasks[test_case_id]
+                    logging.info(f"步骤3完成: 已从任务上下文中移除测试用例: {test_case_id}")
+                else:
+                    logging.info(f"步骤3完成: 测试用例 {test_case_id} 不在任务上下文中")
+                
+                # 从批量任务中移除
+                logging.info(f"步骤4: 从批量任务中移除测试用例: {test_case_id}")
+                batch_execution_id = self._test_case_batch_mapping.get(test_case_id)
+                logging.info(f"步骤4a: 获取到批量任务ID: {batch_execution_id}")
+                if batch_execution_id and batch_execution_id in self._batch_test_cases:
+                    self._batch_test_cases[batch_execution_id].discard(test_case_id)
+                    logging.info(f"步骤4b: 已从批量任务 {batch_execution_id} 中移除测试用例: {test_case_id}")
+                else:
+                    logging.info(f"步骤4b: 批量任务 {batch_execution_id} 不在映射中或不存在")
+                
+                logging.info(f"步骤5: 移除测试用例 {test_case_id} 的批量任务映射")
+                if test_case_id in self._test_case_batch_mapping:
+                    del self._test_case_batch_mapping[test_case_id]
+                    logging.info(f"步骤5完成: 已移除测试用例 {test_case_id} 的批量任务映射")
+                else:
+                    logging.info(f"步骤5完成: 测试用例 {test_case_id} 不在批量任务映射中")
+                
+                logging.info(f"步骤6: 注销测试用例: {test_case_id} 完成")
+        except Exception as e:
+            logging.error(f"注销测试用例 {test_case_id} 时出错: {e}")
+            logging.error(f"错误详情: {type(e).__name__}: {str(e)}")
+            import traceback
+            logging.error(f"错误堆栈: {traceback.format_exc()}")
+            raise
+        finally:
+            logging.info(f"=== 注销测试用例: {test_case_id} 结束 ===")
+    
+    async def cancel_batch_execution(self, batch_execution_id: int) -> bool:
+        """取消批量执行任务"""
+        # 先获取锁，收集需要处理的数据
+        test_case_ids = []
+        cancelled_count = 0
+        
+        async with self._lock:
+            if batch_execution_id not in self._batch_executors:
+                logging.warning(f"批量任务 {batch_execution_id} 不存在")
+                return False
+            
+            logging.info(f"开始取消批量任务: {batch_execution_id}")
+            
+            # 获取该批量任务下的所有测试用例
+            test_case_ids = self._batch_test_cases.get(batch_execution_id, set()).copy()
+            logging.info(f"批量任务 {batch_execution_id} 下共有 {len(test_case_ids)} 个测试用例: {test_case_ids}")
+        
+        # 释放锁后，先取消所有相关的测试用例任务和关闭浏览器，但不立即注销
+        for test_case_id in test_case_ids:
+            logging.info(f"正在取消测试用例 {test_case_id}...")
+            if await self._cancel_test_case_without_unregister(test_case_id):
+                cancelled_count += 1
+                logging.info(f"测试用例 {test_case_id} 取消成功")
+            else:
+                logging.warning(f"测试用例 {test_case_id} 取消失败")
+        
+        # 现在统一注销所有测试用例（这些方法会自己获取锁）
+        logging.info(f"开始统一注销所有测试用例...")
+        for test_case_id in test_case_ids:
+            await self.unregister_test_case(test_case_id)
+        
+        # 注销批量任务执行器（这个方法会自己获取锁）
+        await self.unregister_batch_executor(batch_execution_id)
+        
+        logging.info(f"批量任务 {batch_execution_id} 已取消，共取消 {cancelled_count} 个测试用例")
+        return True
+    
+    async def _cancel_test_case(self, test_case_id: int) -> bool:
+        """取消单个测试用例（包含注销）"""
+        try:
+            logging.info(f"开始取消测试用例 {test_case_id}...")
+            logging.info(f"测试用例 {test_case_id} 的任务状态: {test_case_id in self._test_case_tasks}")
+            logging.info(f"测试用例 {test_case_id} 的浏览器状态: {test_case_id in self._test_case_browsers}")
+            
+            # 取消任务
+            if test_case_id in self._test_case_tasks:
+                task = self._test_case_tasks[test_case_id]
+                logging.info(f"测试用例 {test_case_id} 的任务状态: done={task.done()}, cancelled={task.cancelled()}")
+                if not task.done():
+                    task.cancel()
+                    logging.info(f"已取消测试用例 {test_case_id} 的任务")
+                else:
+                    logging.info(f"测试用例 {test_case_id} 的任务已完成，无需取消")
+            else:
+                logging.warning(f"测试用例 {test_case_id} 的任务不在任务上下文中")
+            
+            # 关闭浏览器
+            if test_case_id in self._test_case_browsers:
+                browser = self._test_case_browsers[test_case_id]
+                logging.info(f"正在关闭测试用例 {test_case_id} 的浏览器...")
+                try:
+                    await browser.close()
+                    logging.info(f"已关闭测试用例 {test_case_id} 的浏览器")
+                except Exception as e:
+                    logging.warning(f"关闭测试用例 {test_case_id} 的浏览器时出错: {e}")
+            else:
+                logging.warning(f"测试用例 {test_case_id} 的浏览器不在任务上下文中")
+            
+            # 注销测试用例
+            await self.unregister_test_case(test_case_id)
+            logging.info(f"测试用例 {test_case_id} 已从任务上下文中注销")
+            return True
+            
+        except Exception as e:
+            logging.error(f"取消测试用例 {test_case_id} 时出错: {e}")
+            return False
+    
+    async def _cancel_test_case_without_unregister(self, test_case_id: int) -> bool:
+        """取消单个测试用例（不包含注销，仅取消任务和关闭浏览器）"""
+        try:
+            logging.info(f"开始取消测试用例 {test_case_id}（不注销）...")
+            logging.info(f"测试用例 {test_case_id} 的任务状态: {test_case_id in self._test_case_tasks}")
+            logging.info(f"测试用例 {test_case_id} 的浏览器状态: {test_case_id in self._test_case_browsers}")
+            
+            # 取消任务
+            if test_case_id in self._test_case_tasks:
+                task = self._test_case_tasks[test_case_id]
+                logging.info(f"测试用例 {test_case_id} 的任务状态: done={task.done()}, cancelled={task.cancelled()}")
+                if not task.done():
+                    task.cancel()
+                    logging.info(f"已取消测试用例 {test_case_id} 的任务")
+                else:
+                    logging.info(f"测试用例 {test_case_id} 的任务已完成，无需取消")
+            else:
+                logging.warning(f"测试用例 {test_case_id} 的任务不在任务上下文中")
+            
+            # 关闭浏览器
+            if test_case_id in self._test_case_browsers:
+                browser = self._test_case_browsers[test_case_id]
+                logging.info(f"正在关闭测试用例 {test_case_id} 的浏览器...")
+                try:
+                    await browser.close()
+                    logging.info(f"已关闭测试用例 {test_case_id} 的浏览器")
+                except Exception as e:
+                    logging.warning(f"关闭测试用例 {test_case_id} 的浏览器时出错: {e}")
+            else:
+                logging.warning(f"测试用例 {test_case_id} 的浏览器不在任务上下文中")
+            
+            logging.info(f"测试用例 {test_case_id} 取消完成（未注销）")
+            return True
+            
+        except Exception as e:
+            logging.error(f"取消测试用例 {test_case_id} 时出错: {e}")
+            return False
+    
+    def get_batch_executor(self, batch_execution_id: int) -> Optional['BatchTestExecutor']:
+        """获取批量任务执行器"""
+        return self._batch_executors.get(batch_execution_id)
+    
+    def is_batch_registered(self, batch_execution_id: int) -> bool:
+        """检查批量任务是否已注册"""
+        return batch_execution_id in self._batch_executors
+    
+    def get_test_case_count(self, batch_execution_id: int) -> int:
+        """获取批量任务下的测试用例数量"""
+        return len(self._batch_test_cases.get(batch_execution_id, set()))
+    
+    def get_all_batch_ids(self) -> List[int]:
+        """获取所有已注册的批量任务ID"""
+        return list(self._batch_executors.keys())
+
+# 全局任务上下文管理器
+task_context = TaskContext()
 
 # 测试结果模型
 class TestStepResult(BaseModel):
@@ -109,9 +373,6 @@ class TestExecutor:
         
         # 设置日志
         self.logger = logging.getLogger(__name__)
-        
-        # 批量执行器引用（用于检查取消状态）
-        self.batch_executor = None
         
         # 初始化配置管理器
         from .config_manager import ConfigManager
@@ -268,24 +529,6 @@ class TestExecutor:
             
             db.commit()
             
-            # 保存测试步骤
-            for i, step_data in enumerate(result.get("test_steps", [])):
-                step = TestStep(
-                    execution_id=execution.id,
-                    step_name=step_data["step_name"],
-                    step_order=i + 1,
-                    status=step_data["status"],
-                    description=step_data["description"],
-                    error_message=step_data.get("error_message"),
-                    screenshot_path=step_data.get("screenshot_path"),
-                    duration_seconds=step_data.get("duration_seconds"),
-                    started_at=beijing_now(),
-                    completed_at=beijing_now()
-                )
-                db.add(step)
-            
-            db.commit()
-            
             # 保存 history 到缓存（如果执行成功且有 agent）
             history_path = ""
             if result.get("success") and result.get("agent"):
@@ -414,113 +657,31 @@ class TestExecutor:
                 
                 start_time = beijing_now()
                 
-                # 检查是否被取消（在开始执行前）
-                if batch_execution_id and self.batch_executor and hasattr(self.batch_executor, 'is_batch_cancelled'):
-                    if self.batch_executor.is_batch_cancelled(batch_execution_id):
-                        self.logger.info(f"批量执行任务 {batch_execution_id} 已被取消，停止测试用例 {test_case.id}")
-                        return {
-                            "success": False,
-                            "error_message": "测试被取消",
-                            "total_duration": 0,
-                            "summary": "测试被取消",
-                            "test_steps": []
-                        }
-                
-                # 创建一个任务来定期检查取消状态
-                async def check_cancellation():
-                    while True:
-                        await asyncio.sleep(1)  # 每秒检查一次
-                        if batch_execution_id and self.batch_executor and hasattr(self.batch_executor, 'is_batch_cancelled'):
-                            if self.batch_executor.is_batch_cancelled(batch_execution_id):
-                                self.logger.info(f"检测到批量执行任务 {batch_execution_id} 被取消，准备停止测试用例 {test_case.id}")
-                                # 关闭浏览器
-                                try:
-                                    await browser.close()
-                                except Exception as e:
-                                    self.logger.warning(f"关闭浏览器时出错: {e}")
-                                return True
-                    return False
-                
-                # 执行测试，同时运行取消检查任务
-                try:
-                    # 创建取消检查任务
-                    cancellation_task = asyncio.create_task(check_cancellation())
-                    
-                    # 执行agent.run()，但设置超时以便能够响应取消
+                # 如果是在批量执行中，注册到任务上下文
+                if batch_execution_id:
+                    # 创建agent执行任务
                     agent_task = asyncio.create_task(agent.run())
                     
-                    # 等待任一任务完成
-                    done, pending = await asyncio.wait(
-                        [agent_task, cancellation_task],
-                        return_when=asyncio.FIRST_COMPLETED
-                    )
+                    # 注册到任务上下文
+                    await task_context.register_test_case(batch_execution_id, test_case.id, browser, agent_task)
                     
-                    # 取消未完成的任务
-                    for task in pending:
-                        task.cancel()
-                        try:
-                            await task
-                        except asyncio.CancelledError:
-                            pass
-                    
-                    # 检查是否是因为取消而结束
-                    if cancellation_task in done:
-                        self.logger.info(f"批量执行任务 {batch_execution_id} 已被取消，停止测试用例 {test_case.id}")
-                        return {
-                            "success": False,
-                            "error_message": "测试被取消",
-                            "total_duration": (beijing_now() - start_time).total_seconds(),
-                            "summary": "测试被取消",
-                            "test_steps": []
-                        }
-                    
-                    # 如果agent任务完成，获取结果
-                    if agent_task in done:
-                        try:
-                            history = agent_task.result()
-                        except Exception as e:
-                            self.logger.error(f"Agent执行失败: {e}")
-                            return {
-                                "success": False,
-                                "error_message": f"Agent执行失败: {e}",
-                                "total_duration": (beijing_now() - start_time).total_seconds(),
-                                "summary": "Agent执行失败",
-                                "test_steps": []
-                            }
-                    else:
-                        # 这种情况不应该发生，但为了安全起见
-                        return {
-                            "success": False,
-                            "error_message": "任务执行异常",
-                            "total_duration": (beijing_now() - start_time).total_seconds(),
-                            "summary": "任务执行异常",
-                            "test_steps": []
-                        }
-                        
-                except Exception as e:
-                    self.logger.error(f"执行测试用例 {test_case.id} 时发生异常: {e}")
-                    return {
-                        "success": False,
-                        "error_message": f"执行异常: {e}",
-                        "total_duration": (beijing_now() - start_time).total_seconds(),
-                        "summary": "执行异常",
-                        "test_steps": []
-                    }
+                    try:
+                        # 等待agent任务完成
+                        history = await agent_task
+                    except asyncio.CancelledError:
+                        self.logger.info(f"测试用例 {test_case.id} 被取消")
+                        # 重新抛出取消异常，让上层知道任务被取消
+                        raise
+                    finally:
+                        # 注意：不要在这里注销测试用例，让任务上下文管理浏览器生命周期
+                        # 只有在批量任务完成或被取消时，才统一清理
+                        pass
+                else:
+                    # 单个测试执行，直接运行
+                    history = await agent.run()
                 
                 end_time = beijing_now()
                 total_duration = (end_time - start_time).total_seconds()
-                
-                # 检查是否被取消（在执行完成后）
-                if batch_execution_id and self.batch_executor and hasattr(self.batch_executor, 'is_batch_cancelled'):
-                    if self.batch_executor.is_batch_cancelled(batch_execution_id):
-                        self.logger.info(f"批量执行任务 {batch_execution_id} 已被取消，停止测试用例 {test_case.id}")
-                        return {
-                            "success": False,
-                            "error_message": "测试被取消",
-                            "total_duration": total_duration,
-                            "summary": "测试被取消",
-                            "test_steps": []
-                        }
                 
                 # 解析测试结果
                 if history.final_result():
@@ -1000,19 +1161,24 @@ class BatchTestExecutor:
         self.test_executor = TestExecutor(api_key)
         self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
-        self._cancelled_batch_ids = set()  # 存储被取消的批量任务ID
-        
-        # 将BatchTestExecutor实例传递给TestExecutor，以便在浏览器测试中检查取消状态
-        self.test_executor.batch_executor = self
+        self.batch_execution_id = None  # 当前批量任务的ID
     
-    def cancel_batch_execution(self, batch_execution_id: int):
-        """取消批量执行任务"""
-        self._cancelled_batch_ids.add(batch_execution_id)
-        self.logger.info(f"批量执行任务 {batch_execution_id} 已被标记为取消")
+    async def register_to_context(self, batch_execution_id: int):
+        """注册到任务上下文"""
+        self.logger.info(f"开始注册批量执行器到任务上下文: {batch_execution_id}")
+        self.batch_execution_id = batch_execution_id
+        await task_context.register_batch_executor(batch_execution_id, self)
+        self.logger.info(f"批量执行器已注册到任务上下文: {batch_execution_id}")
     
-    def is_batch_cancelled(self, batch_execution_id: int) -> bool:
-        """检查批量执行任务是否被取消"""
-        return batch_execution_id in self._cancelled_batch_ids
+    async def unregister_from_context(self):
+        """从任务上下文注销"""
+        if self.batch_execution_id:
+            self.logger.info(f"开始从任务上下文注销批量执行器: {self.batch_execution_id}")
+            await task_context.unregister_batch_executor(self.batch_execution_id)
+            self.batch_execution_id = None
+            self.logger.info("批量执行器已从任务上下文注销")
+        else:
+            self.logger.warning("批量执行器未注册到任务上下文，无法注销")
     
     async def execute_batch_test(self, test_case_ids: List[int], headless: bool = False, batch_name: str = "批量执行任务", batch_execution_id: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -1080,127 +1246,98 @@ class BatchTestExecutor:
                 db.commit()
             
             self.logger.info(f"开始批量执行任务: {batch_execution.name} (ID: {batch_execution.id})，最大并发数: {self.max_concurrent}")
+            self.logger.info(f"批量任务 {batch_execution.id} 下的测试用例数量: {len(batch_test_cases)}")
             
-            # 使用信号量控制并发执行测试用例
-            semaphore = asyncio.Semaphore(self.max_concurrent)
+            # 注册到任务上下文
+            self.logger.info(f"正在注册批量执行器 {batch_execution.id} 到任务上下文...")
+            await self.register_to_context(batch_execution.id)
+            self.logger.info(f"批量执行器 {batch_execution.id} 已成功注册到任务上下文")
             
-            async def execute_with_semaphore(batch_test_case):
-                async with semaphore:
-                    # 检查任务是否被取消
-                    if batch_executor_manager.is_batch_cancelled(batch_execution.id):
-                        self.logger.info(f"批量执行任务 {batch_execution.id} 已被取消，跳过测试用例 {batch_test_case.test_case_id}")
-                        return
-                    
-                    self.logger.info(f"开始执行测试用例 {batch_test_case.test_case_id} (当前并发数: {self.max_concurrent - semaphore._value})")
-                    try:
-                        result = await self._execute_single_test_in_batch(batch_test_case, headless, db)
-                        self.logger.info(f"完成执行测试用例 {batch_test_case.test_case_id}")
-                        return result
-                    except Exception as e:
-                        self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 时发生异常: {e}")
-                        raise
-            
-            # 创建所有任务
-            tasks = []
-            self.logger.info(f"开始创建任务，测试用例数量: {len(batch_test_cases)}")
-            for batch_test_case in batch_test_cases:
-                # 只为pending状态的用例创建任务
-                if batch_test_case.status != "pending":
-                    continue
-                # 在创建任务前检查是否被取消
-                if batch_executor_manager.is_batch_cancelled(batch_execution.id):
-                    self.logger.info(f"批量执行任务 {batch_execution.id} 已被取消，停止创建新任务")
-                    break
+            try:
+                # 使用信号量控制并发执行测试用例
+                semaphore = asyncio.Semaphore(self.max_concurrent)
                 
-                self.logger.info(f"创建任务 for 测试用例 {batch_test_case.test_case_id}")
-                task = asyncio.create_task(execute_with_semaphore(batch_test_case))
-                tasks.append(task)
-            
-            self.logger.info(f"创建了 {len(tasks)} 个任务")
-            
-            # 等待所有任务完成，但定期检查是否被取消
-            if tasks:
-                try:
-                    # 使用asyncio.wait来更快地响应取消信号
-                    done, pending = await asyncio.wait(
-                        tasks,
-                        return_when=asyncio.ALL_COMPLETED
+                async def execute_with_semaphore(batch_test_case):
+                    async with semaphore:
+                        self.logger.info(f"开始执行测试用例 {batch_test_case.test_case_id} (当前并发数: {self.max_concurrent - semaphore._value})")
+                        try:
+                            result = await self._execute_single_test_in_batch(batch_test_case, headless, db)
+                            self.logger.info(f"完成执行测试用例 {batch_test_case.test_case_id}")
+                            return result
+                        except asyncio.CancelledError:
+                            self.logger.info(f"测试用例 {batch_test_case.test_case_id} 被取消")
+                            # 重新抛出取消异常
+                            raise
+                        except Exception as e:
+                            self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 时发生异常: {e}")
+                            raise
+                
+                # 创建所有任务
+                tasks = []
+                self.logger.info(f"开始创建任务，测试用例数量: {len(batch_test_cases)}")
+                for batch_test_case in batch_test_cases:
+                    # 只为pending状态的用例创建任务
+                    if batch_test_case.status != "pending":
+                        continue
+                    
+                    self.logger.info(f"创建任务 for 测试用例 {batch_test_case.test_case_id}")
+                    task = asyncio.create_task(execute_with_semaphore(batch_test_case))
+                    tasks.append(task)
+                
+                self.logger.info(f"创建了 {len(tasks)} 个任务")
+                
+                # 等待所有任务完成
+                if tasks:
+                    try:
+                        # 等待所有任务完成，包括被取消的任务
+                        done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
+                        
+                        # 处理被取消的任务
+                        for task in done:
+                            try:
+                                await task
+                            except asyncio.CancelledError:
+                                self.logger.info("检测到被取消的任务")
+                            except Exception as e:
+                                self.logger.error(f"任务执行异常: {e}")
+                        
+                    except Exception as e:
+                        self.logger.error(f"批量执行任务 {batch_execution.id} 执行过程中发生异常: {e}")
+                
+                # 检查任务是否被取消（通过任务上下文检查）
+                if not task_context.is_batch_registered(batch_execution.id):
+                    self.logger.info(f"批量执行任务 {batch_execution.id} 已被取消")
+                    # 更新任务状态为已取消
+                    batch_execution.status = "cancelled"
+                    batch_execution.completed_at = beijing_now()
+                    batch_execution.updated_at = beijing_now()
+                    db.commit()
+                    
+                    # 推送 WebSocket 更新
+                    await websocket_manager.broadcast_batch_update(
+                        batch_execution.id,
+                        {
+                            "status": batch_execution.status,
+                            "success_count": batch_execution.success_count,
+                            "failed_count": batch_execution.failed_count,
+                            "running_count": batch_execution.running_count,
+                            "pending_count": batch_execution.pending_count,
+                            "total_count": batch_execution.total_count,
+                            "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
+                            "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
+                        }
                     )
                     
-                    # 检查是否被取消
-                    if batch_executor_manager.is_batch_cancelled(batch_execution.id):
-                        # 取消所有未完成的任务
-                        for task in pending:
-                            task.cancel()
-                        
-                        # 等待所有任务完成（包括被取消的）
-                        if pending:
-                            await asyncio.wait(pending)
-                        
-                        self.logger.info(f"批量执行任务 {batch_execution.id} 已被取消")
-                        # 更新任务状态为已取消
-                        batch_execution.status = "cancelled"
-                        batch_execution.completed_at = beijing_now()
-                        batch_execution.updated_at = beijing_now()
-                        db.commit()
-                        
-                        # 推送 WebSocket 更新
-                        await websocket_manager.broadcast_batch_update(
-                            batch_execution.id,
-                            {
-                                "status": batch_execution.status,
-                                "success_count": batch_execution.success_count,
-                                "failed_count": batch_execution.failed_count,
-                                "running_count": batch_execution.running_count,
-                                "pending_count": batch_execution.pending_count,
-                                "total_count": batch_execution.total_count,
-                                "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
-                                "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
-                            }
-                        )
-                        
-                        return {
-                            "success": False,
-                            "batch_execution_id": batch_execution.id,
-                            "batch_name": batch_execution.name,
-                            "status": "cancelled",
-                            "message": "批量执行任务已被取消"
-                        }
-                        
-                except Exception as e:
-                    self.logger.error(f"批量执行任务 {batch_execution.id} 执行过程中发生异常: {e}")
-            
-            # 检查任务是否被取消
-            if batch_executor_manager.is_batch_cancelled(batch_execution.id):
-                self.logger.info(f"批量执行任务 {batch_execution.id} 已被取消")
-                # 更新任务状态为已取消
-                batch_execution.status = "cancelled"
-                batch_execution.completed_at = beijing_now()
-                batch_execution.updated_at = beijing_now()
-                db.commit()
-                
-                # 推送 WebSocket 更新
-                await websocket_manager.broadcast_batch_update(
-                    batch_execution.id,
-                    {
-                        "status": batch_execution.status,
-                        "success_count": batch_execution.success_count,
-                        "failed_count": batch_execution.failed_count,
-                        "running_count": batch_execution.running_count,
-                        "pending_count": batch_execution.pending_count,
-                        "total_count": batch_execution.total_count,
-                        "completed_at": batch_execution.completed_at.isoformat() if batch_execution.completed_at else None,
-                        "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
+                    return {
+                        "success": False,
+                        "batch_execution_id": batch_execution.id,
+                        "batch_name": batch_execution.name,
+                        "status": "cancelled",
+                        "message": "批量执行任务已被取消"
                     }
-                )
-                
-                return {
-                    "success": False,
-                    "batch_execution_id": batch_execution.id,
-                    "batch_name": batch_execution.name,
-                    "status": "cancelled",
-                    "message": "批量执行任务已被取消"
-                }
+            finally:
+                # 从任务上下文中注销
+                await self.unregister_from_context()
             
             # 更新批量执行任务状态为完成
             batch_execution.status = "completed"
@@ -1300,7 +1437,23 @@ class BatchTestExecutor:
                 return
             
             # 执行测试用例
-            result = await self.test_executor.execute_test_case(batch_test_case.test_case_id, headless, batch_test_case.batch_execution_id)
+            try:
+                result = await self.test_executor.execute_test_case(batch_test_case.test_case_id, headless, batch_test_case.batch_execution_id)
+            except asyncio.CancelledError:
+                self.logger.info(f"测试用例 {batch_test_case.test_case_id} 被取消")
+                batch_test_case.status = "cancelled"
+                batch_test_case.completed_at = beijing_now()
+                batch_test_case.updated_at = beijing_now()
+                db.commit()
+                # 重新抛出取消异常
+                raise
+            except Exception as e:
+                self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 时发生异常: {e}")
+                batch_test_case.status = "failed"
+                batch_test_case.completed_at = beijing_now()
+                batch_test_case.updated_at = beijing_now()
+                db.commit()
+                return
             
             # 检查任务是否被取消（在执行完成后）
             if batch_executor_manager.is_batch_cancelled(batch_test_case.batch_execution_id):
@@ -1481,42 +1634,29 @@ class BatchExecutorManager:
     """批量执行器管理器"""
     
     def __init__(self):
-        self._executors = {}  # 存储正在运行的执行器实例
         self._lock = asyncio.Lock()
     
     async def create_executor(self, batch_execution_id: int, max_concurrent: int = 5) -> BatchTestExecutor:
         """创建并注册一个批量执行器"""
         async with self._lock:
             executor = BatchTestExecutor(max_concurrent=max_concurrent)
-            self._executors[batch_execution_id] = executor
             return executor
     
     async def get_executor(self, batch_execution_id: int) -> Optional[BatchTestExecutor]:
         """获取指定的批量执行器"""
-        async with self._lock:
-            return self._executors.get(batch_execution_id)
+        return task_context.get_batch_executor(batch_execution_id)
     
     async def cancel_executor(self, batch_execution_id: int) -> bool:
         """取消指定的批量执行器"""
-        async with self._lock:
-            executor = self._executors.get(batch_execution_id)
-            if executor:
-                executor.cancel_batch_execution(batch_execution_id)
-                return True
-            return False
+        return await task_context.cancel_batch_execution(batch_execution_id)
     
     async def remove_executor(self, batch_execution_id: int):
         """移除指定的批量执行器"""
-        async with self._lock:
-            if batch_execution_id in self._executors:
-                del self._executors[batch_execution_id]
+        await task_context.unregister_batch_executor(batch_execution_id)
     
     def is_batch_cancelled(self, batch_execution_id: int) -> bool:
         """检查批量执行任务是否被取消"""
-        executor = self._executors.get(batch_execution_id)
-        if executor:
-            return executor.is_batch_cancelled(batch_execution_id)
-        return False
+        return not task_context.is_batch_registered(batch_execution_id)
 
 # 全局实例
 batch_executor_manager = BatchExecutorManager()

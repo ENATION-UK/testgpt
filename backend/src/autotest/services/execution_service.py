@@ -2,6 +2,7 @@
 测试执行服务
 """
 
+import logging
 from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
@@ -214,28 +215,81 @@ class ExecutionService:
         db: Session
     ) -> dict:
         """停止批量执行任务"""
+        logging.info(f"=== 开始执行 stop_batch_execution，批量任务ID: {batch_execution_id} ===")
+        
         # 检查批量执行任务是否存在
+        logging.info(f"步骤1: 检查批量执行任务是否存在")
         batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
         if not batch_execution:
+            logging.error(f"批量执行任务 {batch_execution_id} 不存在")
             raise HTTPException(status_code=404, detail="批量执行任务不存在")
+        logging.info(f"步骤1完成: 批量执行任务存在，当前状态: {batch_execution.status}")
         
         # 检查任务状态
+        logging.info(f"步骤2: 检查任务状态")
         if batch_execution.status not in ["running", "pending"]:
+            logging.error(f"任务状态 {batch_execution.status} 不允许停止")
             raise HTTPException(status_code=400, detail="任务不在运行状态，无法停止")
+        logging.info(f"步骤2完成: 任务状态检查通过")
         
         # 尝试取消正在运行的执行器
+        logging.info(f"步骤3: 开始取消批量执行任务 {batch_execution_id}")
         executor_cancelled = await batch_executor_manager.cancel_executor(batch_execution_id)
+        logging.info(f"步骤3完成: 批量执行任务 {batch_execution_id} 取消结果: {executor_cancelled}")
+        
+        # 等待一小段时间，让后台任务响应取消信号
+        import asyncio
+        logging.info(f"步骤4: 等待 0.5 秒，让后台任务响应取消信号...")
+        await asyncio.sleep(0.5)
+        logging.info(f"步骤4完成: 等待结束")
+        
+        # 检查是否还有正在运行的测试用例
+        logging.info(f"步骤5: 检查剩余运行中的测试用例")
+        still_running = db.query(BatchExecutionTestCase).filter(
+            BatchExecutionTestCase.batch_execution_id == batch_execution_id,
+            BatchExecutionTestCase.status == "running"
+        ).count()
+        logging.info(f"步骤5完成: 批量任务 {batch_execution_id} 当前仍有 {still_running} 个测试用例在运行")
+        
+        if still_running > 0:
+            logging.info(f"步骤6: 仍有测试用例在运行，再等待 0.5 秒...")
+            await asyncio.sleep(0.5)
+            logging.info(f"步骤6完成: 额外等待结束")
+            
+            # 最终检查
+            final_running = db.query(BatchExecutionTestCase).filter(
+                BatchExecutionTestCase.batch_execution_id == batch_execution_id,
+                BatchExecutionTestCase.status == "running"
+            ).count()
+            logging.info(f"步骤6结果: 批量任务 {batch_execution_id} 最终仍有 {final_running} 个测试用例在运行")
+        
+        # 如果仍有测试用例在运行，强制更新状态
+        if still_running > 0:
+            logging.info(f"步骤7: 强制更新 {still_running} 个测试用例状态为已取消")
+            db.query(BatchExecutionTestCase).filter(
+                BatchExecutionTestCase.batch_execution_id == batch_execution_id,
+                BatchExecutionTestCase.status == "running"
+            ).update({
+                "status": "cancelled",
+                "completed_at": beijing_now()
+            })
+            db.commit()
+            logging.info(f"步骤7完成: 已强制更新 {still_running} 个测试用例状态为已取消")
         
         # 更新任务状态为已取消
+        logging.info(f"步骤8: 更新任务状态为已取消")
         batch_execution.status = "cancelled"
         batch_execution.completed_at = beijing_now()
         batch_execution.updated_at = beijing_now()
+        logging.info(f"步骤8完成: 任务状态已更新为已取消")
         
         # 停止所有正在运行的测试用例
+        logging.info(f"步骤9: 停止所有正在运行的测试用例")
         running_test_cases = db.query(BatchExecutionTestCase).filter(
             BatchExecutionTestCase.batch_execution_id == batch_execution_id,
             BatchExecutionTestCase.status == "running"
         ).all()
+        logging.info(f"步骤9完成: 找到 {len(running_test_cases)} 个正在运行的测试用例")
         
         for btc in running_test_cases:
             btc.status = "cancelled"
@@ -248,24 +302,29 @@ class ExecutionService:
                     execution.completed_at = beijing_now()
         
         # 将pending状态的测试用例也标记为取消
+        logging.info(f"步骤10: 将pending状态的测试用例标记为取消")
         pending_test_cases = db.query(BatchExecutionTestCase).filter(
             BatchExecutionTestCase.batch_execution_id == batch_execution_id,
             BatchExecutionTestCase.status == "pending"
         ).all()
+        logging.info(f"步骤10完成: 找到 {len(pending_test_cases)} 个pending状态的测试用例")
         
         for btc in pending_test_cases:
             btc.status = "cancelled"
             btc.completed_at = beijing_now()
         
         # 更新统计信息
+        logging.info(f"步骤11: 更新统计信息")
         cancelled_count = len(running_test_cases) + len(pending_test_cases)
         batch_execution.running_count = 0
         batch_execution.pending_count = 0
         batch_execution.failed_count += cancelled_count
         
         db.commit()
+        logging.info(f"步骤11完成: 统计信息已更新，共取消 {cancelled_count} 个测试用例")
         
         # 推送WebSocket更新
+        logging.info(f"步骤12: 推送WebSocket更新")
         await websocket_manager.broadcast_batch_update(
             batch_execution.id,
             {
@@ -279,7 +338,9 @@ class ExecutionService:
                 "updated_at": batch_execution.updated_at.isoformat() if batch_execution.updated_at else None
             }
         )
+        logging.info(f"步骤12完成: WebSocket更新已推送")
         
+        logging.info(f"=== stop_batch_execution 执行完成，准备返回结果 ===")
         return {
             "success": True,
             "message": "批量执行任务已停止"
@@ -342,14 +403,31 @@ class ExecutionService:
         try:
             # 创建并注册批量执行器
             batch_executor = await batch_executor_manager.create_executor(batch_execution_id, max_concurrent=5)
-            result = await batch_executor.execute_batch_test(test_case_ids, headless, batch_execution_id=batch_execution_id)
+            
+            # 执行批量测试，但定期检查是否被取消
+            try:
+                result = await batch_executor.execute_batch_test(test_case_ids, headless, batch_execution_id=batch_execution_id)
+            except asyncio.CancelledError:
+                logging.info(f"后台批量执行任务 {batch_execution_id} 被取消")
+                # 重新抛出取消异常
+                raise
+            except Exception as e:
+                logging.error(f"后台批量执行任务 {batch_execution_id} 执行异常: {e}")
+                raise
             
             # 执行完成后移除执行器
             await batch_executor_manager.remove_executor(batch_execution_id)
             
             # 注意：不需要在这里更新批量执行任务状态，因为BatchTestExecutor已经处理了
             
+        except asyncio.CancelledError:
+            logging.info(f"后台批量执行任务 {batch_execution_id} 被取消，清理资源...")
+            # 任务被取消，清理资源
+            await batch_executor_manager.remove_executor(batch_execution_id)
+            # 重新抛出取消异常
+            raise
         except Exception as e:
+            logging.error(f"后台批量执行任务 {batch_execution_id} 执行失败: {e}")
             # 更新批量执行任务为错误状态
             db = SessionLocal()
             try:
