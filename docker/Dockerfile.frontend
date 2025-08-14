@@ -1,13 +1,9 @@
 FROM node:18-alpine
 
 # 设置代理环境变量
-ENV https_proxy=http://192.168.2.99:7012
-ENV http_proxy=http://192.168.2.99:7012
-ENV all_proxy=socks5://192.168.2.99:7012
-
-# 设置API基础URL（构建时使用）
-ARG VITE_API_BASE_URL=http://localhost:8000
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV https_proxy=http://192.168.2.210:7012
+ENV http_proxy=http://192.168.2.210:7012
+ENV all_proxy=socks5://192.168.2.210:7012
 
 # 设置时区
 ENV TZ=Asia/Shanghai
@@ -16,15 +12,15 @@ RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/$TZ /etc/localtime && ec
 WORKDIR /app
 
 # 复制package文件
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # 安装依赖
 RUN npm ci
 
 # 复制源代码
-COPY . .
+COPY frontend/ ./
 
-# 构建应用
+# 构建应用（不设置VITE_API_BASE_URL，使用默认值）
 RUN npm run build
 
 # 安装serve
@@ -33,5 +29,5 @@ RUN npm install -g serve
 # 暴露端口
 EXPOSE 3000
 
-# 启动命令
-CMD ["serve", "-s", "dist", "-l", "3000"] 
+# 启动命令：动态生成配置文件并启动服务
+CMD ["sh", "-c", "echo \"window.__APP_CONFIG__ = { API_BASE_URL: '${VITE_API_BASE_URL:-/api}' };\" > /app/dist/config.js && exec serve -s dist -l 3000"] 

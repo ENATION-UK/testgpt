@@ -9,9 +9,9 @@ echo ""
 
 # 设置代理环境变量
 echo "1. 设置代理环境变量..."
-export https_proxy=http://192.168.2.99:7012
-export http_proxy=http://192.168.2.99:7012
-export all_proxy=socks5://192.168.2.99:7012
+export https_proxy=http://192.168.2.210:7012
+export http_proxy=http://192.168.2.210:7012
+export all_proxy=socks5://192.168.2.210:7012
 
 echo "   ✓ 代理配置:"
 echo "     http_proxy: $http_proxy"
@@ -97,7 +97,7 @@ else
     echo "❌ 镜像构建失败"
     echo ""
     echo "故障排除建议："
-    echo "1. 检查代理服务器 192.168.2.99:7012 是否可访问"
+    echo "1. 检查代理服务器 192.168.2.210:7012 是否可访问"
     echo "2. 确认网络连接正常"
     echo "3. 重启Docker Desktop"
     echo "4. 查看详细错误信息"

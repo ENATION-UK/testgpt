@@ -15,6 +15,9 @@ services:
       - DISPLAY=:99
       - PLAYWRIGHT_BROWSERS_PATH=/home/playwright/.cache/ms-playwright
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DOCKER_ENV=true
+      - DATA_DIR=/app/data
+      - DB_NAME=autotest.db
     shm_size: '2gb'
     volumes:
       - ../backend:/app
@@ -24,15 +27,12 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: ../docker/Dockerfile.frontend
-      args:
-        VITE_API_BASE_URL: http://localhost:8000
+      context: ../
+      dockerfile: docker/Dockerfile.frontend
     ports:
       - "3000:3000"
-    environment:
-      - TZ=Asia/Shanghai
-      - VITE_API_BASE_URL=http://localhost:8000
+    env_file:
+      - config.env
     depends_on:
       - backend
     networks:
