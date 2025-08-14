@@ -18,7 +18,7 @@ class ConfigService:
         """获取当前模型配置"""
         try:
             config_manager = ConfigManager()
-            config_path = config_manager.get_model_config_path()
+            config_path = config_manager.get_multi_model_config_path()
             if config_path.exists():
                 with open(config_path, "r", encoding="utf-8") as f:
                     config = json.load(f)
@@ -48,7 +48,7 @@ class ConfigService:
         """更新模型配置"""
         try:
             config_manager = ConfigManager()
-            config_path = config_manager.get_model_config_path()
+            config_path = config_manager.get_multi_model_config_path()
             
             # 保存配置到文件
             config_data = config.dict()

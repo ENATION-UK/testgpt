@@ -37,7 +37,7 @@
               <el-icon><TrendCharts /></el-icon>
               统计信息
             </el-menu-item>
-            <el-menu-item index="/model-settings">
+            <el-menu-item index="/multi-model-settings">
               <el-icon><Setting /></el-icon>
               模型设置
             </el-menu-item>

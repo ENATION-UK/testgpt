@@ -30,8 +30,7 @@ class MultiLLMService:
         
     def _get_multi_model_config_path(self) -> str:
         """获取多模型配置文件路径"""
-        config_dir = self.config_manager.config_dir
-        return os.path.join(config_dir, "multi_model_config.json")
+        return str(self.config_manager.get_multi_model_config_path())
     
     def _load_multi_model_config(self) -> MultiModelConfig:
         """加载多模型配置"""

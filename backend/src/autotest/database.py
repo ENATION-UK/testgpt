@@ -29,16 +29,8 @@ class DatabaseConfig:
         
     def _get_database_directory(self) -> pathlib.Path:
         """获取数据库目录路径"""
-        # 优先使用环境变量配置的数据库目录
-        if os.getenv("DATA_DIR"):
-            db_dir = pathlib.Path(os.getenv("DATA_DIR"))
-        else:
-            # 使用配置管理器的数据目录
-            db_dir = self.config_manager.get_data_directory()
-        
-        # 确保目录存在
-        db_dir.mkdir(parents=True, exist_ok=True)
-        return db_dir
+        # 使用配置管理器的数据库路径
+        return self.config_manager.get_database_path().parent
     
     def get_database_url(self) -> str:
         """获取数据库连接URL"""
@@ -341,14 +333,16 @@ def init_db():
                     name="用户登录测试",
                     description="测试用户登录功能是否正常",
                     task_content="""
+
 # 登录测试
-打开 https://seller-bbc740.javamall.com.cn/
+打开 https://admin-bbc740.javamall.com.cn/
 输入用户名superadmin
-密码123456
+密码111111
 验证码1111
 
 # 验证条件
 是否正常进入控制台
+                    
                     """,
                     status="active",
                     priority="high",
@@ -360,12 +354,17 @@ def init_db():
                     name="商品查询测试",
                     description="测试商品查询功能",
                     task_content="""
-# 商品查询测试
-打开 https://seller-bbc740.javamall.com.cn/
-登录系统
-进入商品管理页面
-搜索商品名称"测试商品"
-验证搜索结果是否正确显示
+# 操作步骤
+1.打开：https://buyer-bbc740.javamall.com.cn/login
+2.点击`账号登录`
+3.输入：
+用户名: food
+密码: 111111
+验证码: 1111
+4.点击登录按钮
+# 验证方法
+登录成功后会跳到首页
+首页的导航条部分会有`我的账户`字样
                     """,
                     status="active",
                     priority="medium",

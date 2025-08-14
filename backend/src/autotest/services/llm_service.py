@@ -22,7 +22,7 @@ class LLMService:
         """加载模型配置"""
         try:
             config_manager = ConfigManager()
-            config_path = config_manager.get_model_config_path()
+            config_path = config_manager.get_multi_model_config_path()
             if config_path.exists():
                 with open(config_path, "r", encoding="utf-8") as f:
                     config = json.load(f)

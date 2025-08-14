@@ -386,7 +386,7 @@ class TestExecutor:
         try:
             from .config_manager import ConfigManager
             config_manager = ConfigManager()
-            config_path = config_manager.get_model_config_path()
+            config_path = config_manager.get_multi_model_config_path()
             if config_path.exists():
                 with open(config_path, "r", encoding="utf-8") as f:
                     return json.load(f)
@@ -828,7 +828,7 @@ class TestExecutor:
             return Path(relative_path)
         
         # 如果是相对路径，相对于配置根目录构建完整路径
-        return self.config_manager.config_dir / relative_path
+        return self.config_manager.data_dir / relative_path
     
     def _is_history_valid(self, test_case: TestCase) -> bool:
         """检查 history 是否有效"""
