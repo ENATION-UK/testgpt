@@ -13,13 +13,13 @@ RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/$TZ /etc/localtime && ec
 WORKDIR /app
 
 # 复制package文件
-COPY frontend/package*.json ./
+COPY ./package*.json ./
 
 # 安装依赖
 RUN npm ci
 
 # 复制源代码
-COPY frontend/ ./
+COPY . .
 
 # 构建应用（不设置VITE_API_BASE_URL，使用默认值）
 RUN npm run build

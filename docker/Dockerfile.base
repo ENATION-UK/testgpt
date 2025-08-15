@@ -41,6 +41,17 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libasound2 \
     xvfb \
+    # 添加缺少的依赖
+    libx11-6 \
+    libxcursor1 \
+    libxi6 \
+    libxtst6 \
+    libcups2 \
+    libdrm2 \
+    libgtk-3-0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -56,6 +67,9 @@ RUN pip install playwright
 # 安装Playwright浏览器（以root用户身份）
 RUN playwright install chromium
 RUN playwright install
+RUN chown -R playwright:playwright /home/playwright/.cache/ms-playwright
+
+
 
 # 设置Playwright环境变量
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/playwright/.cache/ms-playwright

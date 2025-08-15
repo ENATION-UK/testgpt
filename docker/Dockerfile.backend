@@ -1,16 +1,138 @@
-FROM autotest-base:latest 
+FROM python:3.11-slim
+
+# 设置代理环境变量
+ARG http_proxy
+ARG https_proxy
+ARG all_proxy
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 修复软件源和GPG密钥问题 - 使用更彻底的方法
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'APT::Get::AllowUnauthenticated "true";' >> /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'Acquire::AllowInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'Acquire::AllowDowngradeToInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99no-check-valid
+
+# 清理并重新配置软件源
+RUN rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/* && \
+    echo "deb http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    echo "deb http://security.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    libglib2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxkbcommon0 \
+    libasound2 \
+    xvfb \
+    # 添加缺少的依赖
+    libx11-6 \
+    libxcursor1 \
+    libxi6 \
+    libxtst6 \
+    libcups2 \
+    libdrm2 \
+    libgtk-3-0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建非root用户
+RUN groupadd -r playwright && useradd -r -g playwright -G audio,video playwright \
+    && mkdir -p /home/playwright/Downloads \
+    && mkdir -p /home/playwright/.cache \
+    && chown -R playwright:playwright /home/playwright
+
+# 安装Playwright
+RUN pip install playwright
+
+# 安装Playwright浏览器（以root用户身份）
+RUN playwright install chromium
+#RUN playwright install
+
+# 强制保存浏览器文件并验证
+RUN playwright install chromium --force && \
+    echo "=== 验证浏览器安装 ===" && \
+    ls -la /home/playwright/.cache/ && \
+    find /home/playwright -name "ms-playwright" -type d -exec ls -la {} \; && \
+    find /home/playwright -name "headless_shell" -type f && \
+    echo "=== 浏览器安装完成 ==="
+
+# 确保 playwright 用户能够访问所有必要的目录和文件
+RUN chown -R playwright:playwright /home/playwright && \
+    chmod -R 755 /home/playwright
+
+# 检查并设置 Playwright 浏览器目录的权限
+RUN find /home/playwright -name "ms-playwright" -type d -exec chown -R playwright:playwright {} \; 2>/dev/null || true && \
+    find /root -name "ms-playwright" -type d -exec chown -R playwright:playwright {} \; 2>/dev/null || true && \
+    find /usr/local -name "ms-playwright" -type d -exec chown -R playwright:playwright {} \; 2>/dev/null || true
+
+# 确保 playwright 用户有执行权限
+RUN find /home/playwright -name "headless_shell" -type f -exec chmod +x {} \; 2>/dev/null || true && \
+    find /root -name "headless_shell" -type f -exec chmod +x {} \; 2>/dev/null || true && \
+    find /usr/local -name "headless_shell" -type f -exec chmod +x {} \; 2>/dev/null || true
+
+# 设置Playwright环境变量 - 动态查找浏览器路径
+RUN echo 'export PLAYWRIGHT_BROWSERS_PATH=$(find /home/playwright -name "ms-playwright" -type d 2>/dev/null | head -1 || find /root -name "ms-playwright" -type d 2>/dev/null | head -1 || find /usr/local -name "ms-playwright" -type d 2>/dev/null | head -1 || echo "/home/playwright/.cache/ms-playwright")' >> /home/playwright/.bashrc
+
+# 设置正确的环境变量
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/playwright/.cache/ms-playwright
+ENV DISPLAY=:99
+
+# 最终验证权限设置
+RUN echo "=== 最终验证 ===" && \
+    echo "=== 检查 playwright 用户目录权限 ===" && \
+    ls -la /home/playwright/ && \
+    echo "=== 检查 .cache 目录权限 ===" && \
+    ls -la /home/playwright/.cache/ 2>/dev/null || echo ".cache 目录不存在" && \
+    echo "=== 检查 ms-playwright 目录权限 ===" && \
+    find /home/playwright -name "ms-playwright" -type d -exec ls -la {} \; 2>/dev/null || echo "ms-playwright 目录未找到" && \
+    echo "=== 查找所有 headless_shell 文件 ===" && \
+    find /home/playwright -name "headless_shell" -type f 2>/dev/null && echo "Found in /home/playwright" || \
+    find /root -name "headless_shell" -type f 2>/dev/null && echo "Found in /root" || \
+    find /usr/local -name "headless_shell" -type f 2>/dev/null && echo "Found in /usr/local" || \
+    echo "headless_shell not found anywhere"
+
+# 强制保存浏览器文件到镜像层
+RUN echo "=== 强制保存浏览器文件 ===" && \
+    find /home/playwright -name "ms-playwright" -type d -exec touch {}/.keep \; 2>/dev/null || true && \
+    find /home/playwright -name "headless_shell" -type f -exec touch {} \; 2>/dev/null || true && \
+    echo "=== 浏览器文件保存完成 ==="
+
+# 关键修复：将浏览器从 root 目录复制到 playwright 用户目录
+RUN echo "=== 复制浏览器到 playwright 用户目录 ===" && \
+    if [ -d "/root/.cache/ms-playwright" ]; then \
+        echo "Found browser in /root/.cache/ms-playwright, copying to /home/playwright/.cache/" && \
+        cp -r /root/.cache/ms-playwright /home/playwright/.cache/ && \
+        chown -R playwright:playwright /home/playwright/.cache/ms-playwright && \
+        echo "Browser copied successfully" && \
+        ls -la /home/playwright/.cache/ms-playwright/; \
+    else \
+        echo "Browser not found in /root/.cache/ms-playwright"; \
+    fi
 
 # 创建数据目录并设置权限
 RUN mkdir -p /app/data && chown -R playwright:playwright /app/data
 
-# 修复 Playwright 浏览器权限问题
-USER root
-RUN playwright install chromium
-RUN playwright install
-RUN chown -R playwright:playwright /home/playwright/.cache/ms-playwright
-
-# 切换回 playwright 用户
-USER playwright
+# 设置工作目录
+WORKDIR /app
 
 # 复制依赖文件
 COPY pyproject.toml uv.lock ./
@@ -21,6 +143,25 @@ RUN pip install --no-cache-dir -e .
 # 复制应用代码
 COPY . .
 
+# 修复文件权限问题
+RUN chown -R playwright:playwright /app
+
+# 切换到playwright用户
+USER playwright
+
+# 验证并修复权限问题
+RUN echo "=== 当前用户 ===" && whoami && \
+    echo "=== 检查浏览器目录权限 ===" && \
+    ls -la /home/playwright/.cache/ 2>/dev/null || echo ".cache 目录不存在" && \
+    find /home/playwright -name "ms-playwright" -type d -exec ls -la {} \; 2>/dev/null || echo "ms-playwright 目录未找到" && \
+    echo "=== 尝试修复权限 ===" && \
+    chmod -R 755 /home/playwright/.cache 2>/dev/null || echo "无法修复 .cache 权限" && \
+    find /home/playwright -name "ms-playwright" -type d -exec chmod -R 755 {} \; 2>/dev/null || echo "无法修复 ms-playwright 权限"
+
+# 验证 Playwright 浏览器在 playwright 用户下是否可用
+RUN playwright --version
+
+# 清理代理环境变量
 RUN unset https_proxy http_proxy all_proxy HTTPS_PROXY HTTP_PROXY
 
 # 验证代理已被移除
@@ -30,4 +171,4 @@ RUN env | grep -i proxy || echo "No proxy variables found"
 EXPOSE 8000
 
 # 启动命令 - 使用bash直接执行
-CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 2 && python run.py"] 
+CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 2 && python run.py"]

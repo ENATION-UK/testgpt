@@ -766,7 +766,7 @@ class TestExecutor:
             return []
         
         # 创建输出目录
-        output_dir = Path(f"test_screenshots/execution_{execution_id}")
+        output_dir = self.config_manager.get_screenshots_directory() / f"execution_{execution_id}"
         output_dir.mkdir(parents=True, exist_ok=True)
         
         saved_paths = []

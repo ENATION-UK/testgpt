@@ -67,17 +67,21 @@ else
     exit 1
 fi
 
-# # 构建前端镜像
-# echo "5. 构建前端镜像..."
-# echo ""
+# 构建前端镜像
+echo "5. 构建前端镜像..."
+echo ""
 
-# if docker build -f docker/Dockerfile.frontend -t docker-frontend:latest frontend; then
-#     echo "   ✅ 前端镜像构建成功！"
-#     echo ""
-# else
-#     echo "   ❌ 前端镜像构建失败"
-#     exit 1
-# fi
+if docker build  \
+  --build-arg http_proxy=http://192.168.2.210:7012 \
+  --build-arg https_proxy=http://192.168.2.210:7012 \
+  --build-arg all_proxy=socks5://192.168.2.210:7012 \
+  -f docker/Dockerfile.frontend -t docker-frontend:latest frontend; then
+    echo "   ✅ 前端镜像构建成功！"
+    echo ""
+else
+    echo "   ❌ 前端镜像构建失败"
+    exit 1
+fi
 
 # 启动服务
 # echo "6. 启动服务..."

@@ -110,7 +110,7 @@ class ConfigManager:
     
     def get_screenshots_directory(self) -> Path:
         """获取截图目录路径"""
-        screenshots_dir = self.data_dir / "screenshots"
+        screenshots_dir = self.data_dir / "test_screenshots"
         screenshots_dir.mkdir(parents=True, exist_ok=True)
         return screenshots_dir
     
