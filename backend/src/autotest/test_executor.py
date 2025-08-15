@@ -394,7 +394,7 @@ class TestExecutor:
             self.logger.warning(f"加载配置文件失败: {e}")
         return {}
 
-    async def execute_test_case(self, test_case_id: int, headless: bool = False, batch_execution_id: Optional[int] = None) -> Dict[str, Any]:
+    async def execute_test_case(self, test_case_id: int, headless: bool = False, batch_execution_id: Optional[int] = None, execution_id: Optional[int] = None) -> Dict[str, Any]:
         """
         执行单个测试用例
         
@@ -402,6 +402,7 @@ class TestExecutor:
             test_case_id: 测试用例ID
             headless: 是否无头模式
             batch_execution_id: 批量执行任务ID（可选）
+            execution_id: 已存在的执行记录ID（可选）
             
         Returns:
             执行结果
@@ -421,89 +422,104 @@ class TestExecutor:
                     "execution_id": None
                 }
             
-            # 检查是否应该使用 history 缓存
-            if self._should_use_history(test_case):
-                self.logger.info(f"测试用例 {test_case_id} 使用 history 缓存")
+            # 如果提供了execution_id，使用现有的执行记录
+            if execution_id:
+                execution = db.query(TestExecution).filter(TestExecution.id == execution_id).first()
+                if not execution:
+                    return {
+                        "success": False,
+                        "error_message": "执行记录不存在",
+                        "execution_id": None
+                    }
+                # 更新执行记录状态为运行中
+                execution.status = "running"
+                execution.started_at = beijing_now()
+                db.commit()
+                db.refresh(execution)
+            else:
+                # 检查是否应该使用 history 缓存
+                if self._should_use_history(test_case):
+                    self.logger.info(f"测试用例 {test_case_id} 使用 history 缓存")
+                    # 创建执行记录
+                    execution = TestExecution(
+                        test_case_id=test_case_id,
+                        execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}_from_history",
+                        status="running",
+                        started_at=beijing_now()
+                    )
+                    db.add(execution)
+                    db.commit()
+                    db.refresh(execution)
+                    
+                    # 尝试从 history 回放
+                    result = await self._try_replay_from_history(test_case, execution, headless)
+                    
+                    if result:
+                        # 更新执行记录
+                        execution.status = "passed" if result["success"] else "failed"
+                        execution.overall_status = result.get("overall_status", "FAILED")
+                        execution.total_duration = result.get("total_duration", 0)
+                        execution.summary = result.get("summary", "")
+                        execution.recommendations = result.get("recommendations", "")
+                        execution.error_message = result.get("error_message", "")
+                        execution.completed_at = beijing_now()
+                        
+                        # 更新统计信息
+                        execution.total_steps = len(result.get("test_steps", []))
+                        execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
+                        execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
+                        execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
+                        
+                        # 保存浏览器日志和截图
+                        execution.browser_logs = result.get("browser_logs", [])
+                        execution.screenshots = result.get("screenshots", [])
+                        
+                        db.commit()
+                        
+                        # 保存测试步骤
+                        for i, step_data in enumerate(result.get("test_steps", [])):
+                            step = TestStep(
+                                execution_id=execution.id,
+                                step_name=step_data["step_name"],
+                                step_order=i + 1,
+                                status=step_data["status"],
+                                description=step_data["description"],
+                                error_message=step_data.get("error_message"),
+                                screenshot_path=step_data.get("screenshot_path"),
+                                duration_seconds=step_data.get("duration_seconds"),
+                                started_at=beijing_now(),
+                                completed_at=beijing_now()
+                            )
+                            db.add(step)
+                        
+                        db.commit()
+                        
+                        return {
+                            "success": result["success"],
+                            "execution_id": execution.id,
+                            "overall_status": result.get("overall_status", "FAILED"),
+                            "total_duration": result.get("total_duration", 0),
+                            "summary": result.get("summary", ""),
+                            "recommendations": result.get("recommendations", ""),
+                            "error_message": result.get("error_message", ""),
+                            "test_steps": result.get("test_steps", []),
+                            "from_history": True
+                        }
+                    else:
+                        # 如果回放失败，使 history 失效并继续正常执行
+                        self.logger.warning(f"从 history 回放失败，将重新执行测试用例 {test_case_id}")
+                        self._invalidate_history(test_case_id, db)
+                
                 # 创建执行记录
                 execution = TestExecution(
                     test_case_id=test_case_id,
-                    execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}_from_history",
+                    execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
                     status="running",
                     started_at=beijing_now()
                 )
                 db.add(execution)
                 db.commit()
                 db.refresh(execution)
-                
-                # 尝试从 history 回放
-                result = await self._try_replay_from_history(test_case, execution, headless)
-                
-                if result:
-                    # 更新执行记录
-                    execution.status = "passed" if result["success"] else "failed"
-                    execution.overall_status = result.get("overall_status", "FAILED")
-                    execution.total_duration = result.get("total_duration", 0)
-                    execution.summary = result.get("summary", "")
-                    execution.recommendations = result.get("recommendations", "")
-                    execution.error_message = result.get("error_message", "")
-                    execution.completed_at = beijing_now()
-                    
-                    # 更新统计信息
-                    execution.total_steps = len(result.get("test_steps", []))
-                    execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
-                    execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
-                    execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
-                    
-                    # 保存浏览器日志和截图
-                    execution.browser_logs = result.get("browser_logs", [])
-                    execution.screenshots = result.get("screenshots", [])
-                    
-                    db.commit()
-                    
-                    # 保存测试步骤
-                    for i, step_data in enumerate(result.get("test_steps", [])):
-                        step = TestStep(
-                            execution_id=execution.id,
-                            step_name=step_data["step_name"],
-                            step_order=i + 1,
-                            status=step_data["status"],
-                            description=step_data["description"],
-                            error_message=step_data.get("error_message"),
-                            screenshot_path=step_data.get("screenshot_path"),
-                            duration_seconds=step_data.get("duration_seconds"),
-                            started_at=beijing_now(),
-                            completed_at=beijing_now()
-                        )
-                        db.add(step)
-                    
-                    db.commit()
-                    
-                    return {
-                        "success": result["success"],
-                        "execution_id": execution.id,
-                        "overall_status": result.get("overall_status", "FAILED"),
-                        "total_duration": result.get("total_duration", 0),
-                        "summary": result.get("summary", ""),
-                        "recommendations": result.get("recommendations", ""),
-                        "error_message": result.get("error_message", ""),
-                        "test_steps": result.get("test_steps", []),
-                        "from_history": True
-                    }
-                else:
-                    # 如果回放失败，使 history 失效并继续正常执行
-                    self.logger.warning(f"从 history 回放失败，将重新执行测试用例 {test_case_id}")
-                    self._invalidate_history(test_case_id, db)
-            
-            # 创建执行记录
-            execution = TestExecution(
-                test_case_id=test_case_id,
-                execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
-                status="running",
-                started_at=beijing_now()
-            )
-            db.add(execution)
-            db.commit()
-            db.refresh(execution)
             
             # 执行浏览器测试
             result = await self._run_browser_test(test_case, execution, headless, batch_execution_id)
@@ -644,11 +660,10 @@ class TestExecutor:
                 llm = self.multi_llm_service._create_llm_instance(request_config)
                 
                 agent = Agent(
-                    task=test_case.task_content,
+                    task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
                     llm=llm,
                     page=page,
                     use_vision=True,
-                    save_conversation_path=f'/tmp/test_execution_{execution.id}',
                     controller=self.test_controller,
                     extend_system_message=final_prompt,
                 )
@@ -912,11 +927,10 @@ class TestExecutor:
                     # 创建 Agent 并尝试回放
                     from browser_use import Agent
                     agent = Agent(
-                        task=test_case.task_content,
+                        task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
                         llm=llm,
                         page=page,
                         use_vision=True,
-                        save_conversation_path=f'/tmp/test_replay_{execution.id}',
                         controller=self.test_controller,
                         extend_system_message=TEST_SYSTEM_PROMPT,
                     )
@@ -1438,7 +1452,28 @@ class BatchTestExecutor:
             
             # 执行测试用例
             try:
-                result = await self.test_executor.execute_test_case(batch_test_case.test_case_id, headless, batch_test_case.batch_execution_id)
+                # 为批量执行创建执行记录
+                execution = TestExecution(
+                    test_case_id=batch_test_case.test_case_id,
+                    execution_name=f"批量执行_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
+                    status="running",
+                    started_at=beijing_now()
+                )
+                db.add(execution)
+                db.commit()
+                db.refresh(execution)
+                
+                # 更新批量测试用例记录的执行ID
+                batch_test_case.execution_id = execution.id
+                db.commit()
+                
+                # 执行测试用例，使用已创建的执行记录
+                result = await self.test_executor.execute_test_case(
+                    batch_test_case.test_case_id, 
+                    headless, 
+                    batch_test_case.batch_execution_id,
+                    execution.id
+                )
             except asyncio.CancelledError:
                 self.logger.info(f"测试用例 {batch_test_case.test_case_id} 被取消")
                 batch_test_case.status = "cancelled"
@@ -1614,10 +1649,10 @@ class BatchTestExecutor:
             db.close()
 
 # 便捷函数
-async def execute_single_test(test_case_id: int, headless: bool = False) -> Dict[str, Any]:
+async def execute_single_test(test_case_id: int, headless: bool = False, execution_id: Optional[int] = None) -> Dict[str, Any]:
     """执行单个测试用例的便捷函数"""
     executor = TestExecutor()
-    return await executor.execute_test_case(test_case_id, headless)
+    return await executor.execute_test_case(test_case_id, headless, execution_id=execution_id)
 
 async def execute_multiple_tests(test_case_ids: List[int], headless: bool = False) -> Dict[str, Any]:
     """批量执行测试用例的便捷函数"""

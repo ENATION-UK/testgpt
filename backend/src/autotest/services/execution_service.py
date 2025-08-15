@@ -350,7 +350,8 @@ class ExecutionService:
     async def _run_test_in_background(execution_id: int, test_case_id: int, headless: bool):
         """在后台运行单个测试"""
         try:
-            result = await execute_single_test(test_case_id, headless)
+            # 使用已存在的执行记录ID，避免重复创建
+            result = await execute_single_test(test_case_id, headless, execution_id=execution_id)
             
             # 更新执行记录
             db = SessionLocal()
