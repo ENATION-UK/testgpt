@@ -70,7 +70,23 @@ export const testCaseApi = {
   update: (id: number, data: Partial<TestCase>) => api.put<TestCase>(`/test-cases/${id}/`, data) as unknown as Promise<TestCase>,
   
   // 删除测试用例
-  delete: (id: number) => api.delete(`/test-cases/${id}/`) as unknown as Promise<void>
+  delete: (id: number) => api.delete(`/test-cases/${id}/`) as unknown as Promise<void>,
+  
+  // 预览Excel文件
+  previewExcel: (formData: FormData) => 
+    api.post('/test-cases/preview-excel/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }) as unknown as Promise<{ preview: any[]; total_rows: number }>,
+  
+  // 导入Excel文件
+  importExcel: (formData: FormData) => 
+    api.post('/test-cases/import-excel/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }) as unknown as Promise<{ success: boolean; imported_count: number; total_rows: number; message: string }>
 }
 
 // 测试执行相关API

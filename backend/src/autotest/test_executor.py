@@ -431,86 +431,68 @@ class TestExecutor:
                         "error_message": "执行记录不存在",
                         "execution_id": None
                     }
+                
+                                # 尝试缓存回放
+                result = await self._try_cache_replay(test_case, execution, headless, db)
+                if result:
+                    # 缓存回放成功，更新执行记录并返回
+                    execution.status = "passed" if result["success"] else "failed"
+                    execution.overall_status = result.get("overall_status", "FAILED")
+                    execution.total_duration = result.get("total_duration", 0)
+                    execution.summary = result.get("summary", "")
+                    execution.recommendations = result.get("recommendations", "")
+                    execution.error_message = result.get("error_message", "")
+                    execution.completed_at = beijing_now()
+                    
+                    # 更新统计信息
+                    execution.total_steps = len(result.get("test_steps", []))
+                    execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
+                    execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
+                    execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
+                    
+                    # 保存浏览器日志和截图
+                    execution.browser_logs = result.get("browser_logs", [])
+                    execution.screenshots = result.get("screenshots", [])
+                    
+                    db.commit()
+                    
+                    # 保存测试步骤
+                    for i, step_data in enumerate(result.get("test_steps", [])):
+                        step = TestStep(
+                            execution_id=execution.id,
+                            step_name=step_data["step_name"],
+                            step_order=i + 1,
+                            status=step_data["status"],
+                            description=step_data["description"],
+                            error_message=step_data.get("error_message"),
+                            screenshot_path=step_data.get("screenshot_path"),
+                            duration_seconds=step_data.get("duration_seconds"),
+                            started_at=beijing_now(),
+                            completed_at=beijing_now()
+                        )
+                        db.add(step)
+                    
+                    db.commit()
+                    
+                    return {
+                        "success": result["success"],
+                        "execution_id": execution.id,
+                        "overall_status": result.get("overall_status", "FAILED"),
+                        "total_duration": result.get("total_duration", 0),
+                        "summary": result.get("summary", ""),
+                        "recommendations": result.get("recommendations", ""),
+                        "error_message": result.get("error_message", ""),
+                        "test_steps": result.get("test_steps", []),
+                        "from_history": True
+                    }
+                
                 # 更新执行记录状态为运行中
                 execution.status = "running"
                 execution.started_at = beijing_now()
                 db.commit()
                 db.refresh(execution)
             else:
-                # 检查是否应该使用 history 缓存
-                if self._should_use_history(test_case):
-                    self.logger.info(f"测试用例 {test_case_id} 使用 history 缓存")
-                    # 创建执行记录
-                    execution = TestExecution(
-                        test_case_id=test_case_id,
-                        execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}_from_history",
-                        status="running",
-                        started_at=beijing_now()
-                    )
-                    db.add(execution)
-                    db.commit()
-                    db.refresh(execution)
-                    
-                    # 尝试从 history 回放
-                    result = await self._try_replay_from_history(test_case, execution, headless)
-                    
-                    if result:
-                        # 更新执行记录
-                        execution.status = "passed" if result["success"] else "failed"
-                        execution.overall_status = result.get("overall_status", "FAILED")
-                        execution.total_duration = result.get("total_duration", 0)
-                        execution.summary = result.get("summary", "")
-                        execution.recommendations = result.get("recommendations", "")
-                        execution.error_message = result.get("error_message", "")
-                        execution.completed_at = beijing_now()
-                        
-                        # 更新统计信息
-                        execution.total_steps = len(result.get("test_steps", []))
-                        execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
-                        execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
-                        execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
-                        
-                        # 保存浏览器日志和截图
-                        execution.browser_logs = result.get("browser_logs", [])
-                        execution.screenshots = result.get("screenshots", [])
-                        
-                        db.commit()
-                        
-                        # 保存测试步骤
-                        for i, step_data in enumerate(result.get("test_steps", [])):
-                            step = TestStep(
-                                execution_id=execution.id,
-                                step_name=step_data["step_name"],
-                                step_order=i + 1,
-                                status=step_data["status"],
-                                description=step_data["description"],
-                                error_message=step_data.get("error_message"),
-                                screenshot_path=step_data.get("screenshot_path"),
-                                duration_seconds=step_data.get("duration_seconds"),
-                                started_at=beijing_now(),
-                                completed_at=beijing_now()
-                            )
-                            db.add(step)
-                        
-                        db.commit()
-                        
-                        return {
-                            "success": result["success"],
-                            "execution_id": execution.id,
-                            "overall_status": result.get("overall_status", "FAILED"),
-                            "total_duration": result.get("total_duration", 0),
-                            "summary": result.get("summary", ""),
-                            "recommendations": result.get("recommendations", ""),
-                            "error_message": result.get("error_message", ""),
-                            "test_steps": result.get("test_steps", []),
-                            "from_history": True
-                        }
-                    else:
-                        # 如果回放失败，使 history 失效并继续正常执行
-                        self.logger.warning(f"从 history 回放失败，将重新执行测试用例 {test_case_id}")
-                        self._invalidate_history(test_case_id, db)
-                
-                # 创建执行记录
+                # 没有execution_id时，创建新的执行记录并尝试缓存回放
                 execution = TestExecution(
                     test_case_id=test_case_id,
                     execution_name=f"{test_case.name}_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
@@ -520,6 +502,63 @@ class TestExecutor:
                 db.add(execution)
                 db.commit()
                 db.refresh(execution)
+                
+                # 尝试缓存回放
+                result = await self._try_cache_replay(test_case, execution, headless, db)
+                if result:
+                    # 缓存回放成功，更新执行记录并返回
+                    execution.status = "passed" if result["success"] else "failed"
+                    execution.overall_status = result.get("overall_status", "FAILED")
+                    execution.total_duration = result.get("total_duration", 0)
+                    execution.summary = result.get("summary", "")
+                    execution.recommendations = result.get("recommendations", "")
+                    execution.error_message = result.get("error_message", "")
+                    execution.completed_at = beijing_now()
+                    
+                    # 更新统计信息
+                    execution.total_steps = len(result.get("test_steps", []))
+                    execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
+                    execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
+                    execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
+                    
+                    # 保存浏览器日志和截图
+                    execution.browser_logs = result.get("browser_logs", [])
+                    execution.screenshots = result.get("screenshots", [])
+                    
+                    db.commit()
+                    
+                    # 保存测试步骤
+                    for i, step_data in enumerate(result.get("test_steps", [])):
+                        step = TestStep(
+                            execution_id=execution.id,
+                            step_name=step_data["step_name"],
+                            step_order=i + 1,
+                            status=step_data["status"],
+                            description=step_data["description"],
+                            error_message=step_data.get("error_message"),
+                            screenshot_path=step_data.get("screenshot_path"),
+                            duration_seconds=step_data.get("duration_seconds"),
+                            started_at=beijing_now(),
+                            completed_at=beijing_now()
+                        )
+                        db.add(step)
+                    
+                    db.commit()
+                    
+                    return {
+                        "success": result["success"],
+                        "execution_id": execution.id,
+                        "overall_status": result.get("overall_status", "FAILED"),
+                        "total_duration": result.get("total_duration", 0),
+                        "summary": result.get("summary", ""),
+                        "recommendations": result.get("recommendations", ""),
+                        "error_message": result.get("error_message", ""),
+                        "test_steps": result.get("test_steps", []),
+                        "from_history": True
+                    }
+                
+                # 缓存回放失败或无效，继续正常执行
+                self.logger.info(f"=== 测试用例 {test_case_id} 的缓存检查完成，开始正常执行 ===")
             
             # 执行浏览器测试
             result = await self._run_browser_test(test_case, execution, headless, batch_execution_id)
@@ -835,43 +874,71 @@ class TestExecutor:
     
     def _get_history_path_from_relative(self, relative_path: str) -> Path:
         """根据相对路径获取完整的 history 文件路径"""
+        self.logger.info(f"=== 开始解析 history 路径 ===")
+        self.logger.info(f"输入的相对路径: {relative_path}")
+        self.logger.info(f"配置根目录: {self.config_manager.data_dir}")
+        
         if not relative_path:
+            self.logger.warning("输入的相对路径为空")
             return None
         
         # 如果已经是绝对路径，直接返回
         if Path(relative_path).is_absolute():
+            self.logger.info(f"输入路径已经是绝对路径: {relative_path}")
             return Path(relative_path)
         
         # 如果是相对路径，相对于配置根目录构建完整路径
-        return self.config_manager.data_dir / relative_path
+        full_path = self.config_manager.data_dir / relative_path
+        self.logger.info(f"构建的完整路径: {full_path}")
+        self.logger.info(f"=== history 路径解析完成 ===")
+        return full_path
     
     def _is_history_valid(self, test_case: TestCase) -> bool:
         """检查 history 是否有效"""
+        self.logger.info(f"=== 开始验证测试用例 {test_case.id} 的 history 缓存 ===")
+        self.logger.info(f"测试用例 {test_case.id} 的 history_path: {test_case.history_path}")
+        self.logger.info(f"测试用例 {test_case.id} 的 history_updated_at: {test_case.history_updated_at}")
+        
         if not test_case.history_path:
+            self.logger.info(f"测试用例 {test_case.id} 没有 history_path，缓存无效")
             return False
         
         # 根据相对路径获取完整路径
         history_path = self._get_history_path_from_relative(test_case.history_path)
+        self.logger.info(f"测试用例 {test_case.id} 的完整 history 路径: {history_path}")
+        
         if not history_path or not history_path.exists():
+            self.logger.warning(f"测试用例 {test_case.id} 的 history 文件不存在或路径无效: {history_path}")
             return False
         
         # 检查文件是否为空或损坏
         try:
-            if history_path.stat().st_size == 0:
+            file_size = history_path.stat().st_size
+            self.logger.info(f"测试用例 {test_case.id} 的 history 文件大小: {file_size} 字节")
+            
+            if file_size == 0:
+                self.logger.warning(f"测试用例 {test_case.id} 的 history 文件为空")
                 return False
             
             # 尝试解析 JSON 文件
             with open(history_path, 'r', encoding='utf-8') as f:
-                json.load(f)
+                content = f.read()
+                json.loads(content)
+                self.logger.info(f"测试用例 {test_case.id} 的 history 文件 JSON 格式验证通过")
             return True
         except Exception as e:
-            self.logger.warning(f"History 文件 {history_path} 无效: {e}")
+            self.logger.warning(f"测试用例 {test_case.id} 的 history 文件 {history_path} 无效: {e}")
             return False
+        finally:
+            self.logger.info(f"=== 测试用例 {test_case.id} 的 history 缓存验证完成 ===")
     
     def _should_use_history(self, test_case: TestCase) -> bool:
         """判断是否应该使用 history 缓存"""
+        self.logger.info(f"=== 开始判断测试用例 {test_case.id} 是否应该使用 history 缓存 ===")
+        
         # 如果没有 history 文件，直接返回 False
         if not self._is_history_valid(test_case):
+            self.logger.info(f"测试用例 {test_case.id} 的 history 缓存无效，将重新执行")
             return False
         
         # 检查 history 是否过期（比如超过7天）
@@ -879,20 +946,36 @@ class TestExecutor:
             from datetime import timedelta
             # 确保时区一致性
             history_time = ensure_timezone_aware(test_case.history_updated_at)
-            if beijing_now() - history_time > timedelta(days=7):
-                self.logger.info(f"测试用例 {test_case.id} 的 history 已过期，将重新执行")
+            current_time = beijing_now()
+            time_diff = current_time - history_time
+            days_diff = time_diff.days
+            
+            self.logger.info(f"测试用例 {test_case.id} 的 history 更新时间: {history_time}")
+            self.logger.info(f"当前时间: {current_time}")
+            self.logger.info(f"时间差: {time_diff} (共 {days_diff} 天)")
+            
+            if time_diff > timedelta(days=7):
+                self.logger.info(f"测试用例 {test_case.id} 的 history 已过期 ({days_diff} 天 > 7 天)，将重新执行")
                 return False
+            else:
+                self.logger.info(f"测试用例 {test_case.id} 的 history 未过期 ({days_diff} 天 <= 7 天)，可以使用缓存")
+        else:
+            self.logger.warning(f"测试用例 {test_case.id} 的 history_updated_at 为空，将重新执行")
+            return False
         
+        self.logger.info(f"=== 测试用例 {test_case.id} 可以使用 history 缓存 ===")
         return True
     
     async def _try_replay_from_history(self, test_case: TestCase, execution: TestExecution, headless: bool) -> Optional[Dict[str, Any]]:
         """尝试从 history 回放测试"""
         try:
-            self.logger.info(f"尝试从 history 回放测试用例 {test_case.id}")
+            self.logger.info(f"=== 开始尝试从 history 回放测试用例 {test_case.id} ===")
+            self.logger.info(f"测试用例 {test_case.id} 的 history_path: {test_case.history_path}")
             
             # 创建浏览器实例
             from playwright.async_api import async_playwright
             async with async_playwright() as p:
+                self.logger.info(f"启动浏览器实例，headless: {headless}")
                 browser = await p.chromium.launch(
                     headless=headless,
                     args=[
@@ -915,16 +998,20 @@ class TestExecutor:
                 
                 try:
                     page = await browser.new_page()
+                    self.logger.info("浏览器页面创建成功")
                     
                     # 使用多模型服务创建LLM实例
+                    self.logger.info("开始创建LLM实例...")
                     config = self.multi_llm_service._load_multi_model_config()
                     request_config = self.multi_llm_service._get_next_available_config(config)
                     if not request_config:
                         raise Exception("没有可用的API key配置")
                     
                     llm = self.multi_llm_service._create_llm_instance(request_config)
+                    self.logger.info("LLM实例创建成功")
                     
                     # 创建 Agent 并尝试回放
+                    self.logger.info("开始创建Agent实例...")
                     from browser_use import Agent
                     agent = Agent(
                         task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
@@ -934,27 +1021,45 @@ class TestExecutor:
                         controller=self.test_controller,
                         extend_system_message=TEST_SYSTEM_PROMPT,
                     )
+                    self.logger.info("Agent实例创建成功")
                     
                     start_time = beijing_now()
                     
                     # 尝试从 history 回放
                     try:
                         # 根据相对路径获取完整路径
+                        self.logger.info(f"解析 history 文件路径...")
                         full_history_path = self._get_history_path_from_relative(test_case.history_path)
+                        self.logger.info(f"解析后的完整 history 路径: {full_history_path}")
+                        
                         if not full_history_path:
                             self.logger.warning(f"无法解析 history 路径: {test_case.history_path}")
                             return None
                         
+                        if not full_history_path.exists():
+                            self.logger.warning(f"History 文件不存在: {full_history_path}")
+                            return None
+                        
+                        self.logger.info(f"开始调用 agent.load_and_rerun() 进行回放...")
                         # 使用 agent.load_and_rerun() 方法回放，这是正确的方式
                         history_result = await agent.load_and_rerun(str(full_history_path))
+                        self.logger.info(f"agent.load_and_rerun() 调用完成，返回结果类型: {type(history_result)}")
+                        
+                        if history_result:
+                            self.logger.info(f"回放返回结果长度: {len(history_result) if isinstance(history_result, list) else 'N/A'}")
+                        else:
+                            self.logger.warning("回放返回结果为空")
+                        
                         print("重放结果：")
                         print(history_result)
                         end_time = beijing_now()
                         total_duration = (end_time - start_time).total_seconds()
+                        self.logger.info(f"回放总耗时: {total_duration} 秒")
                         
                         # 解析回放结果
                         if history_result and isinstance(history_result, list) and len(history_result) > 0:
                             try:
+                                self.logger.info("开始解析回放结果...")
                                 # 查找最后一个 ActionResult，它应该包含最终的测试结果
                                 final_action = None
                                 for action in reversed(history_result):
@@ -963,6 +1068,7 @@ class TestExecutor:
                                         break
                                 
                                 if final_action and final_action.extracted_content:
+                                    self.logger.info("找到包含最终结果的 ActionResult")
                                     # 尝试解析 extracted_content 中的 JSON 数据
                                     try:
                                         # 查找 JSON 格式的测试结果
@@ -973,12 +1079,13 @@ class TestExecutor:
                                         json_match = re.search(r'\{.*\}', final_action.extracted_content, re.DOTALL)
                                         if json_match:
                                             json_str = json_match.group()
+                                            self.logger.info(f"从 extracted_content 中提取到 JSON 数据: {json_str[:200]}...")
                                             test_result = TestResult.model_validate_json(json_str)
                                             
                                             # 保存截图
                                             screenshots = self._save_screenshots(history_result, execution.id)
                                             
-                                            self.logger.info(f"从 history 回放测试用例 {test_case.id} 成功")
+                                            self.logger.info(f"✅ 从 history 回放测试用例 {test_case.id} 成功")
                                             
                                             return {
                                                 "success": test_result.overall_status == "PASSED",
@@ -1011,6 +1118,8 @@ class TestExecutor:
                             
                     except Exception as e:
                         self.logger.warning(f"从 history 回放失败: {e}")
+                        import traceback
+                        self.logger.warning(f"回放失败详细错误: {traceback.format_exc()}")
                         return None
                             
                     except Exception as e:
@@ -1019,22 +1128,67 @@ class TestExecutor:
                         
                 finally:
                     await browser.close()
+                    self.logger.info("浏览器实例已关闭")
                     
         except Exception as e:
             self.logger.error(f"尝试回放时发生异常: {e}")
+            import traceback
+            self.logger.error(f"回放异常详细错误: {traceback.format_exc()}")
+            return None
+        finally:
+            self.logger.info(f"=== 测试用例 {test_case.id} 的 history 回放尝试完成 ===")
+    
+    async def _try_cache_replay(self, test_case: TestCase, execution: TestExecution, headless: bool, db) -> Optional[Dict[str, Any]]:
+        """
+        尝试缓存回放的抽象方法
+        
+        Args:
+            test_case: 测试用例
+            execution: 执行记录
+            headless: 是否无头模式
+            db: 数据库会话
+            
+        Returns:
+            回放结果，如果失败返回None
+        """
+        self.logger.info(f"=== 开始检查测试用例 {test_case.id} 是否可以使用 history 缓存 ===")
+        
+        if not self._should_use_history(test_case):
+            self.logger.info(f"❌ 测试用例 {test_case.id} 不能使用 history 缓存，将重新执行")
+            return None
+        
+        self.logger.info(f"✅ 测试用例 {test_case.id} 使用 history 缓存")
+        
+        # 尝试从 history 回放
+        self.logger.info(f"开始尝试从 history 回放测试用例 {test_case.id}")
+        result = await self._try_replay_from_history(test_case, execution, headless)
+        
+        if result:
+            self.logger.info(f"✅ 从 history 回放测试用例 {test_case.id} 成功")
+            return result
+        else:
+            # 如果回放失败，使 history 失效
+            self.logger.warning(f"❌ 从 history 回放失败，将重新执行测试用例 {test_case.id}")
+            self._invalidate_history(test_case.id, db)
             return None
     
     def _save_history_to_cache(self, test_case_id: int, agent, db) -> str:
         """保存 history 到缓存并更新数据库"""
         try:
+            self.logger.info(f"=== 开始保存测试用例 {test_case_id} 的 history 到缓存 ===")
+            
             # 生成 history 文件路径
             history_path = self._get_history_path(test_case_id)
+            self.logger.info(f"生成的 history 文件路径: {history_path}")
             
             # 使用 agent.save_history() 方法保存，这是正确的方式
+            self.logger.info("开始调用 agent.save_history() 保存历史记录...")
             agent.save_history(str(history_path))
+            self.logger.info("agent.save_history() 调用完成")
             
             # 将绝对路径转换为相对路径（相对于配置根目录）
             relative_path = f"history/test_case_{test_case_id}_history.json"
+            self.logger.info(f"转换后的相对路径: {relative_path}")
             
             # 更新数据库中的 history 路径和时间
             test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
@@ -1042,34 +1196,57 @@ class TestExecutor:
                 test_case.history_path = relative_path
                 test_case.history_updated_at = beijing_now()
                 db.commit()
-                self.logger.info(f"已保存测试用例 {test_case_id} 的 history 到 {relative_path}")
+                self.logger.info(f"✅ 已保存测试用例 {test_case_id} 的 history 到 {relative_path}")
+                self.logger.info(f"数据库更新时间: {test_case.history_updated_at}")
+            else:
+                self.logger.warning(f"未找到测试用例 {test_case_id}，无法更新数据库")
             
+            self.logger.info(f"=== 测试用例 {test_case_id} 的 history 缓存保存完成 ===")
             return relative_path
         except Exception as e:
             self.logger.error(f"保存 history 失败: {e}")
+            import traceback
+            self.logger.error(f"保存 history 详细错误: {traceback.format_exc()}")
             return ""
     
     def _invalidate_history(self, test_case_id: int, db) -> None:
         """使 history 失效"""
         try:
+            self.logger.info(f"=== 开始使测试用例 {test_case_id} 的 history 失效 ===")
             test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
             if test_case:
+                old_history_path = test_case.history_path
+                old_updated_at = test_case.history_updated_at
+                
                 test_case.history_path = None
                 test_case.history_updated_at = None
                 db.commit()
-                self.logger.info(f"已使测试用例 {test_case_id} 的 history 失效")
+                
+                self.logger.info(f"✅ 已使测试用例 {test_case_id} 的 history 失效")
+                self.logger.info(f"原 history_path: {old_history_path}")
+                self.logger.info(f"原 history_updated_at: {old_updated_at}")
+            else:
+                self.logger.warning(f"未找到测试用例 {test_case_id}，无法使 history 失效")
         except Exception as e:
             self.logger.error(f"使 history 失效失败: {e}")
+            import traceback
+            self.logger.error(f"使 history 失效详细错误: {traceback.format_exc()}")
+        finally:
+            self.logger.info(f"=== 测试用例 {test_case_id} 的 history 失效操作完成 ===")
     
     def force_refresh_history(self, test_case_id: int) -> bool:
         """强制刷新指定测试用例的 history 缓存"""
         try:
+            self.logger.info(f"=== 开始强制刷新测试用例 {test_case_id} 的 history 缓存 ===")
             db = SessionLocal()
             try:
                 test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
                 if test_case:
+                    self.logger.info(f"找到测试用例 {test_case_id}，当前 history_path: {test_case.history_path}")
+                    self.logger.info(f"当前 history_updated_at: {test_case.history_updated_at}")
+                    
                     self._invalidate_history(test_case_id, db)
-                    self.logger.info(f"已强制刷新测试用例 {test_case_id} 的 history 缓存")
+                    self.logger.info(f"✅ 已强制刷新测试用例 {test_case_id} 的 history 缓存")
                     return True
                 else:
                     self.logger.warning(f"测试用例 {test_case_id} 不存在")
@@ -1078,57 +1255,62 @@ class TestExecutor:
                 db.close()
         except Exception as e:
             self.logger.error(f"强制刷新 history 缓存失败: {e}")
+            import traceback
+            self.logger.error(f"强制刷新 history 缓存详细错误: {traceback.format_exc()}")
             return False
+        finally:
+            self.logger.info(f"=== 测试用例 {test_case_id} 的 history 缓存强制刷新操作完成 ===")
     
     def cleanup_expired_history(self, max_days: int = 30) -> int:
         """清理过期的 history 文件"""
         try:
-            from datetime import timedelta
-            # 确保时区一致性
-            cutoff_date = beijing_now() - timedelta(days=max_days)
-            cleaned_count = 0
-            
+            self.logger.info(f"=== 开始清理过期的 history 文件，最大保留天数: {max_days} ===")
             db = SessionLocal()
             try:
-                # 查找过期的 history 记录
-                # 由于数据库中的时间可能没有时区信息，我们需要在 Python 中进行时区转换
-                all_cases = db.query(TestCase).filter(
-                    TestCase.history_path.isnot(None)
+                from datetime import timedelta
+                cutoff_date = beijing_now() - timedelta(days=max_days)
+                self.logger.info(f"清理截止日期: {cutoff_date}")
+                
+                # 查找过期的测试用例
+                expired_test_cases = db.query(TestCase).filter(
+                    TestCase.history_path.isnot(None),
+                    TestCase.history_updated_at < cutoff_date
                 ).all()
                 
-                expired_cases = []
-                for test_case in all_cases:
-                    if test_case.history_updated_at:
-                        # 确保时区一致性
-                        history_time = ensure_timezone_aware(test_case.history_updated_at)
-                        if history_time < cutoff_date:
-                            expired_cases.append(test_case)
+                self.logger.info(f"找到 {len(expired_test_cases)} 个过期的测试用例")
                 
-                for test_case in expired_cases:
+                cleaned_count = 0
+                for test_case in expired_test_cases:
                     try:
-                        # 根据相对路径获取完整路径
+                        self.logger.info(f"清理测试用例 {test_case.id} 的过期 history")
+                        self.logger.info(f"history_path: {test_case.history_path}")
+                        self.logger.info(f"history_updated_at: {test_case.history_updated_at}")
+                        
+                        # 删除文件
                         full_history_path = self._get_history_path_from_relative(test_case.history_path)
                         if full_history_path and full_history_path.exists():
                             full_history_path.unlink()
+                            self.logger.info(f"已删除过期文件: {full_history_path}")
                         
                         # 更新数据库
                         test_case.history_path = None
                         test_case.history_updated_at = None
                         cleaned_count += 1
                         
-                        self.logger.info(f"已清理过期的 history 文件: {test_case.history_path}")
+                        self.logger.info(f"✅ 已清理过期的 history 文件: {test_case.history_path}")
                     except Exception as e:
                         self.logger.warning(f"清理 history 文件失败 {test_case.history_path}: {e}")
                 
                 db.commit()
-                self.logger.info(f"共清理了 {cleaned_count} 个过期的 history 文件")
+                self.logger.info(f"=== 过期 history 文件清理完成，共清理 {cleaned_count} 个 ===")
                 return cleaned_count
                 
             finally:
                 db.close()
-                
         except Exception as e:
-            self.logger.error(f"清理过期 history 失败: {e}")
+            self.logger.error(f"清理过期的 history 文件失败: {e}")
+            import traceback
+            self.logger.error(f"清理过期 history 文件详细错误: {traceback.format_exc()}")
             return 0
     
     def get_history_stats(self) -> Dict[str, Any]:
