@@ -832,20 +832,19 @@ onUnmounted(() => {
 
 .mode-selector {
   width: 100%;
+  display: flex;
+  gap: 16px;
 }
 
 .mode-selector .el-radio {
-  width: 48%;
-  margin-right: 4%;
+  flex: 1;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
-  transition: all 0.3s;
-}
-
-.mode-selector .el-radio:nth-child(even) {
   margin-right: 0;
+  transition: all 0.3s;
+  min-width: 0; /* 防止内容溢出 */
 }
 
 .mode-selector .el-radio:hover {
@@ -873,6 +872,8 @@ onUnmounted(() => {
   font-size: 14px;
   color: #606266;
   line-height: 1.4;
+  word-wrap: break-word;
+  white-space: normal;
 }
 
 .template-download {
