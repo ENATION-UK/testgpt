@@ -25,6 +25,10 @@
               <el-icon><Folder /></el-icon>
               分类管理
             </el-menu-item>
+            <el-menu-item index="/excel-import">
+              <el-icon><Upload /></el-icon>
+              Excel导入
+            </el-menu-item>
             <el-menu-item index="/executions">
               <el-icon><VideoPlay /></el-icon>
               执行记录
@@ -61,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { Monitor, House, Document, VideoPlay, Collection, TrendCharts, Setting, ChatDotRound, Folder } from '@element-plus/icons-vue'
+import { Monitor, House, Document, VideoPlay, Collection, TrendCharts, Setting, ChatDotRound, Folder, Upload } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

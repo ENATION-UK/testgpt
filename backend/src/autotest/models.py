@@ -210,4 +210,55 @@ class LLMRequestConfig(BaseModel):
     base_url: str
     model: str
     temperature: float
-    max_tokens: Optional[int] = None 
+    max_tokens: Optional[int] = None
+
+# Excel导入任务相关模型
+class ImportTaskCreate(BaseModel):
+    """创建导入任务"""
+    name: str = Field(description="任务名称")
+    file_name: str = Field(description="Excel文件名")
+    import_options: Dict[str, Any] = Field(description="导入选项")
+    batch_size: int = Field(default=10, description="批次大小")
+
+class ImportTaskResponse(BaseModel):
+    """导入任务响应"""
+    id: int
+    name: str
+    file_name: str
+    status: str
+    total_rows: int
+    processed_rows: int
+    success_rows: int
+    failed_rows: int
+    current_batch: int
+    total_batches: int
+    progress_percentage: float
+    import_options: Optional[Dict[str, Any]] = None
+    error_log: Optional[List[Dict[str, Any]]] = None
+    result_summary: Optional[Dict[str, Any]] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ImportTaskStatus(BaseModel):
+    """导入任务状态"""
+    task_id: int
+    status: str
+    progress_percentage: float
+    current_batch: int
+    total_batches: int
+    processed_rows: int
+    total_rows: int
+    success_rows: int
+    failed_rows: int
+    error_messages: List[str] = []
+
+class ImportTaskListResponse(BaseModel):
+    """导入任务列表响应"""
+    tasks: List[ImportTaskResponse]
+    total: int
+    has_running_task: bool 

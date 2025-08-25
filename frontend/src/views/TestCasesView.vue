@@ -7,7 +7,7 @@
           <el-icon><Folder /></el-icon>
           分类管理
         </el-button>
-        <el-button type="success" @click="showImportDialog = true">
+        <el-button type="success" @click="goToImportPage">
           <el-icon><Upload /></el-icon>
           导入Excel
         </el-button>
@@ -157,12 +157,6 @@
       @updated="handleTestCaseUpdated"
     />
 
-    <!-- 导入Excel对话框 -->
-    <ImportExcelDialog
-      v-model="showImportDialog"
-      @imported="handleTestCaseImported"
-    />
-
     <!-- 批量执行对话框 -->
     <el-dialog
       v-model="showBatchExecuteDialog"
@@ -241,7 +235,6 @@ import type { TestCase, Category } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
 import ViewTestCaseDialog from '@/components/ViewTestCaseDialog.vue'
 import EditTestCaseDialog from '@/components/EditTestCaseDialog.vue'
-import ImportExcelDialog from '@/components/ImportExcelDialog.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -249,7 +242,6 @@ const testCases = ref<TestCase[]>([])
 const showCreateDialog = ref(false)
 const showViewDialog = ref(false)
 const showEditDialog = ref(false)
-const showImportDialog = ref(false) // Added for import dialog
 const showBatchExecuteDialog = ref(false) // Added for batch execute dialog
 const selectedTestCase = ref<TestCase | null>(null)
 
@@ -318,6 +310,11 @@ const loadCategoryTree = async () => {
 // 跳转到分类管理页面
 const goToCategories = () => {
   router.push('/categories')
+}
+
+// 跳转到Excel导入页面
+const goToImportPage = () => {
+  router.push('/excel-import')
 }
 
 // 处理分类变化
@@ -423,10 +420,6 @@ const handleEditFromView = (testCase: TestCase) => {
 }
 
 const handleTestCaseUpdated = () => {
-  loadTestCases()
-}
-
-const handleTestCaseImported = () => {
   loadTestCases()
 }
 

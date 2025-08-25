@@ -214,4 +214,73 @@ export const websocketService = new WebSocketService()
 // 在页面卸载时断开连接
 window.addEventListener('beforeunload', () => {
   websocketService.disconnect()
-}) 
+})
+
+// Vue 3 Composition API Hook
+import { ref, onUnmounted } from 'vue'
+
+export function useWebSocket() {
+  const isConnected = ref(false)
+  const messageHandlers = new Map<string, (data: any) => void>()
+
+  // 连接状态监听
+  const checkConnection = () => {
+    isConnected.value = websocketService.isConnected()
+  }
+
+  // 定期检查连接状态
+  const connectionChecker = setInterval(checkConnection, 1000)
+
+  const connect = () => {
+    checkConnection()
+  }
+
+  const disconnect = () => {
+    websocketService.disconnect()
+    isConnected.value = false
+  }
+
+  const onMessage = (handler: (data: any) => void) => {
+    // 监听所有类型的消息
+    const messageHandler = (message: WebSocketMessage) => {
+      handler(message)
+    }
+    
+    websocketService.onMessage('import_progress', messageHandler)
+    websocketService.onMessage('batch_execution_update', messageHandler)
+    websocketService.onMessage('batch_execution_list_update', messageHandler)
+    
+    // 保存处理器引用以便清理
+    messageHandlers.set('all', messageHandler)
+  }
+
+  const subscribeToBatch = (batchId: number) => {
+    websocketService.subscribeToBatch(batchId)
+  }
+
+  const unsubscribeFromBatch = (batchId: number) => {
+    websocketService.unsubscribeFromBatch(batchId)
+  }
+
+  // 组件卸载时清理
+  onUnmounted(() => {
+    clearInterval(connectionChecker)
+    
+    // 清理消息处理器
+    messageHandlers.forEach((handler, type) => {
+      websocketService.offMessage('import_progress', handler)
+      websocketService.offMessage('batch_execution_update', handler)
+      websocketService.offMessage('batch_execution_list_update', handler)
+    })
+    messageHandlers.clear()
+  })
+
+  return {
+    isConnected,
+    connect,
+    disconnect,
+    onMessage,
+    subscribeToBatch,
+    unsubscribeFromBatch
+  }
+} 

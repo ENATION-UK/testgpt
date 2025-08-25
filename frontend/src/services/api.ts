@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution, Category, CategoryCreate, CategoryUpdate } from '@/types/api'
+import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution, Category, CategoryCreate, CategoryUpdate, ImportTask, ImportTaskCreate, ImportTaskStatus, ImportTaskListResponse } from '@/types/api'
 
 // 动态获取API基础URL
 function getApiBaseUrl(): string {
@@ -192,6 +192,37 @@ export const multiModelConfigApi = {
   
   // 测试多模型配置
   testConfig: () => api.post('/multi-model/test/') as unknown as Promise<any>
+}
+
+// Excel导入任务相关API
+export const importTaskApi = {
+  // 创建导入任务
+  create: (formData: FormData) => 
+    api.post<ImportTask>('/import-tasks/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }) as unknown as Promise<ImportTask>,
+  
+  // 获取导入任务列表
+  getList: (limit?: number) => 
+    api.get<ImportTaskListResponse>('/import-tasks/', { params: { limit } }) as unknown as Promise<ImportTaskListResponse>,
+  
+  // 获取单个导入任务
+  getById: (id: number) => 
+    api.get<ImportTask>(`/import-tasks/${id}/`) as unknown as Promise<ImportTask>,
+  
+  // 获取任务状态
+  getStatus: (id: number) => 
+    api.get<ImportTaskStatus>(`/import-tasks/${id}/status/`) as unknown as Promise<ImportTaskStatus>,
+  
+  // 取消任务
+  cancel: (id: number) => 
+    api.post<{ success: boolean; message: string }>(`/import-tasks/${id}/cancel/`) as unknown as Promise<{ success: boolean; message: string }>,
+  
+  // 检查是否有正在运行的任务
+  hasRunning: () => 
+    api.get<{ has_running_task: boolean }>('/import-tasks/has-running/') as unknown as Promise<{ has_running_task: boolean }>
 }
 
 export default api

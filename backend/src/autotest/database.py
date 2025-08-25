@@ -200,6 +200,31 @@ class BatchExecution(Base):
     # 关联关系
     test_cases = relationship("BatchExecutionTestCase", back_populates="batch_execution")
 
+# Excel导入任务模型
+class ImportTask(Base):
+    __tablename__ = "import_task"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="主键ID")
+    name = Column(String(255), nullable=False, comment="导入任务名称")
+    file_name = Column(String(255), nullable=False, comment="Excel文件名")
+    file_path = Column(String(500), comment="文件存储路径")
+    status = Column(String(50), default="pending", comment="任务状态: pending, running, completed, failed, cancelled")
+    total_rows = Column(Integer, default=0, comment="总行数")
+    processed_rows = Column(Integer, default=0, comment="已处理行数")
+    success_rows = Column(Integer, default=0, comment="成功导入行数")
+    failed_rows = Column(Integer, default=0, comment="失败行数")
+    current_batch = Column(Integer, default=0, comment="当前批次")
+    total_batches = Column(Integer, default=0, comment="总批次数")
+    batch_size = Column(Integer, default=10, comment="批次大小")
+    progress_percentage = Column(Float, default=0.0, comment="进度百分比")
+    import_options = Column(JSON, comment="导入选项")
+    error_log = Column(JSON, comment="错误日志")
+    result_summary = Column(JSON, comment="导入结果摘要")
+    started_at = Column(DateTime, comment="开始时间")
+    completed_at = Column(DateTime, comment="完成时间")
+    created_at = Column(DateTime, default=beijing_now, comment="创建时间")
+    updated_at = Column(DateTime, default=beijing_now, onupdate=beijing_now, comment="更新时间")
+
 # 批量执行任务中的测试用例模型
 class BatchExecutionTestCase(Base):
     __tablename__ = "batch_execution_test_case"
@@ -295,7 +320,7 @@ def check_tables_exist():
             from sqlalchemy import text, inspect
             inspector = inspect(engine)
             tables = inspector.get_table_names()
-            required_tables = ['test_case', 'test_execution', 'test_step', 'category', 'batch_execution', 'test_suite', 'test_suite_case']
+            required_tables = ['test_case', 'test_execution', 'test_step', 'category', 'batch_execution', 'test_suite', 'test_suite_case', 'import_task']
             
             missing_tables = [table for table in required_tables if table not in tables]
             

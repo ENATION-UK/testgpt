@@ -183,3 +183,69 @@ export interface BatchExecutionTestCase {
   error_message?: string
   test_case_name: string
 }
+
+// Excel导入任务相关类型定义
+export interface ImportTask {
+  id: number
+  name: string
+  file_name: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  total_rows: number
+  processed_rows: number
+  success_rows: number
+  failed_rows: number
+  current_batch: number
+  total_batches: number
+  progress_percentage: number
+  import_options?: {
+    defaultStatus: string
+    defaultPriority: string
+    defaultCategory: string
+  }
+  error_log?: Array<{
+    type: string
+    message: string
+    row?: number
+    timestamp: string
+  }>
+  result_summary?: {
+    total_rows: number
+    success_rows: number
+    failed_rows: number
+    success_rate: number
+  }
+  started_at?: string
+  completed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ImportTaskCreate {
+  name: string
+  file_name: string
+  import_options: {
+    defaultStatus: string
+    defaultPriority: string
+    defaultCategory: string
+  }
+  batch_size?: number
+}
+
+export interface ImportTaskStatus {
+  task_id: number
+  status: string
+  progress_percentage: number
+  current_batch: number
+  total_batches: number
+  processed_rows: number
+  total_rows: number
+  success_rows: number
+  failed_rows: number
+  error_messages: string[]
+}
+
+export interface ImportTaskListResponse {
+  tasks: ImportTask[]
+  total: number
+  has_running_task: boolean
+}
