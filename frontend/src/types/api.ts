@@ -2,7 +2,6 @@
 export interface TestCase {
   id: number
   name: string
-  description?: string
   task_content: string
   status: string
   priority: string
@@ -18,7 +17,6 @@ export interface TestCase {
 export interface Category {
   id: number
   name: string
-  description?: string
   parent_id?: number
   level: number
   sort_order: number
@@ -31,14 +29,12 @@ export interface Category {
 
 export interface CategoryCreate {
   name: string
-  description?: string
   parent_id?: number
   sort_order?: number
 }
 
 export interface CategoryUpdate {
   name?: string
-  description?: string
   parent_id?: number
   sort_order?: number
   is_active?: boolean
@@ -102,7 +98,6 @@ export interface Statistics {
 // 创建测试用例请求类型
 export interface CreateTestCaseRequest {
   name: string
-  description: string
   task_content: string
   status?: 'active' | 'inactive' | 'draft'
   priority?: 'low' | 'medium' | 'high' | 'critical'

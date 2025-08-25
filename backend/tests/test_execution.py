@@ -16,7 +16,6 @@ def test_simple_execution():
     # 1. 创建一个简单的测试用例
     test_case = {
         "name": "简单页面访问测试",
-        "description": "测试访问百度首页",
         "task_content": """
 # 简单页面访问测试
 打开 https://www.baidu.com

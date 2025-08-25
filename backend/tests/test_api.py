@@ -40,7 +40,6 @@ def test_create_test_case():
     
     test_case_data = {
         "name": "API测试用例",
-        "description": "通过API创建的测试用例",
         "task_content": """
 # API测试用例
 打开 https://www.baidu.com

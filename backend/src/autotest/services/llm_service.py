@@ -80,7 +80,6 @@ Excel内容：
 请将Excel中的每一行转换为一个测试用例，格式如下：
 {{
     "name": "测试用例名称",
-    "description": "测试用例描述",
     "task_content": "具体的测试任务内容",
     "status": "active/inactive/draft",
     "priority": "low/medium/high/critical",

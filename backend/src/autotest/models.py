@@ -9,7 +9,6 @@ from datetime import datetime
 # 测试用例相关模型
 class TestCaseCreate(BaseModel):
     name: str
-    description: Optional[str] = None
     task_content: str
     status: str = "active"
     priority: str = "medium"
@@ -20,7 +19,6 @@ class TestCaseCreate(BaseModel):
 
 class TestCaseUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
     task_content: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
@@ -32,7 +30,6 @@ class TestCaseUpdate(BaseModel):
 class TestCaseResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
     task_content: str
     status: str
     priority: str

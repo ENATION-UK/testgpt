@@ -26,9 +26,6 @@
           <el-descriptions-item label="创建时间" :span="2">
             {{ testCase.created_at ? formatDate(testCase.created_at) : '' }}
           </el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">
-            {{ testCase.description || '暂无描述' }}
-          </el-descriptions-item>
           <el-descriptions-item label="任务内容" :span="2">
             <div class="task-content">{{ testCase.task_content || '暂无任务内容' }}</div>
           </el-descriptions-item>

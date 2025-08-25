@@ -95,7 +95,6 @@ class TestCase(Base):
     
     id = Column(Integer, primary_key=True, index=True, comment="主键ID")
     name = Column(String(255), nullable=False, comment="测试用例名称")
-    description = Column(Text, comment="测试用例描述")
     task_content = Column(Text, nullable=False, comment="测试任务内容")
     status = Column(String(50), default="active", comment="状态: active, inactive, draft")
     priority = Column(String(20), default="medium", comment="优先级: low, medium, high, critical")
@@ -357,7 +356,6 @@ def init_db():
             test_cases = [
                 TestCase(
                     name="用户登录测试",
-                    description="测试用户登录功能是否正常",
                     task_content="""
 
 # 登录测试
@@ -378,7 +376,6 @@ def init_db():
                 ),
                 TestCase(
                     name="商品查询测试",
-                    description="测试商品查询功能",
                     task_content="""
 # 操作步骤
 1.打开：https://buyer-bbc740.javamall.com.cn/login
@@ -400,7 +397,6 @@ def init_db():
                 ),
                 TestCase(
                     name="订单创建测试",
-                    description="测试订单创建功能",
                     task_content="""
 # 订单创建测试
 打开 https://seller-bbc740.javamall.com.cn/

@@ -12,7 +12,6 @@ def convert_excel_to_test_cases(df: pd.DataFrame, import_options: dict) -> List[
     for _, row in df.iterrows():
         # 智能识别列名并提取信息
         name = str(row.get('标题', row.get('name', row.get('名称', row.get('Name', f'测试用例_{len(test_cases) + 1}')))))
-        description = str(row.get('前置条件', row.get('description', row.get('描述', row.get('Description', '')))))
         task_content = str(row.get('步骤描述', row.get('task_content', row.get('任务内容', row.get('Task', row.get('内容', ''))))))
         expected_result = str(row.get('预期结果', row.get('expected_result', row.get('期望结果', row.get('Expected Result', '')))))
         
@@ -60,7 +59,6 @@ def convert_excel_to_test_cases(df: pd.DataFrame, import_options: dict) -> List[
         
         test_case = {
             "name": name,
-            "description": description,
             "task_content": task_content,
             "status": status,
             "priority": priority,

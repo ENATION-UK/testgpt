@@ -20,24 +20,24 @@
           />
         </el-form-item>
   
-        <el-form-item label="描述" prop="description">
-          <el-input
-            v-model="form.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入测试用例描述"
-            maxlength="500"
-            show-word-limit
-          />
-        </el-form-item>
-  
-        <el-form-item label="任务内容" prop="task_content">
+        <el-form-item label="操作步骤" prop="task_content">
           <el-input
             v-model="form.task_content"
             type="textarea"
             :rows="4"
-            placeholder="请输入测试任务内容，例如：打开网站，执行登录操作等"
+            placeholder="请输入具体的操作步骤，例如：1. 打开网站 2. 点击登录按钮 3. 输入用户名密码等"
             maxlength="1000"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item label="预期结果" prop="expected_result">
+          <el-input
+            v-model="form.expected_result"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入预期测试结果"
+            maxlength="500"
             show-word-limit
           />
         </el-form-item>
@@ -89,17 +89,6 @@
             </el-tag>
           </div>
         </el-form-item>
-  
-        <el-form-item label="预期结果" prop="expected_result">
-          <el-input
-            v-model="form.expected_result"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入预期测试结果"
-            maxlength="500"
-            show-word-limit
-          />
-        </el-form-item>
       </el-form>
   
       <template #footer>
@@ -138,7 +127,6 @@ import type { CreateTestCaseRequest, Category } from '@/types/api'
   
   const form = reactive<CreateTestCaseRequest & { category_id?: number }>({
     name: '',
-    description: '',
     task_content: '',
     category: '',
     category_id: undefined,
@@ -165,13 +153,9 @@ import type { CreateTestCaseRequest, Category } from '@/types/api'
       { required: true, message: '请输入测试用例名称', trigger: 'blur' },
       { min: 2, max: 100, message: '名称长度在 2 到 100 个字符', trigger: 'blur' }
     ],
-    description: [
-      { required: true, message: '请输入测试用例描述', trigger: 'blur' },
-      { min: 5, max: 500, message: '描述长度在 5 到 500 个字符', trigger: 'blur' }
-    ],
     task_content: [
-      { required: true, message: '请输入任务内容', trigger: 'blur' },
-      { min: 10, max: 1000, message: '任务内容长度在 10 到 1000 个字符', trigger: 'blur' }
+      { required: true, message: '请输入操作步骤', trigger: 'blur' },
+      { min: 10, max: 1000, message: '操作步骤长度在 10 到 1000 个字符', trigger: 'blur' }
     ],
     category_id: [
       { required: false, message: '请选择分类', trigger: 'change' }
@@ -181,6 +165,10 @@ import type { CreateTestCaseRequest, Category } from '@/types/api'
     ],
     status: [
       { required: true, message: '请选择状态', trigger: 'change' }
+    ],
+    expected_result: [
+      { required: true, message: '请输入预期结果', trigger: 'blur' },
+      { min: 2, max: 500, message: '预期结果长度在 2 到 500 个字符', trigger: 'blur' }
     ]
   }
   
@@ -199,7 +187,6 @@ import type { CreateTestCaseRequest, Category } from '@/types/api'
   
   const resetForm = () => {
     form.name = ''
-    form.description = ''
     form.task_content = ''
     form.category = ''
     form.category_id = undefined

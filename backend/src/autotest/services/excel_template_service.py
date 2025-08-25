@@ -16,7 +16,6 @@ class ExcelTemplateService:
     # 标准模版字段定义
     STANDARD_TEMPLATE_COLUMNS = [
         "测试用例名称",
-        "测试用例描述", 
         "测试步骤",
         "预期结果",
         "优先级",
@@ -28,7 +27,6 @@ class ExcelTemplateService:
     # 字段说明
     COLUMN_DESCRIPTIONS = {
         "测试用例名称": "必填，测试用例的名称标题",
-        "测试用例描述": "可选，测试用例的详细描述或前置条件",
         "测试步骤": "必填，具体的测试执行步骤",
         "预期结果": "必填，期望的测试结果",
         "优先级": "可选，支持：low/medium/high/critical，默认medium",
@@ -41,7 +39,6 @@ class ExcelTemplateService:
     SAMPLE_DATA = [
         {
             "测试用例名称": "用户登录功能测试",
-            "测试用例描述": "验证用户能够正常登录系统",
             "测试步骤": "1. 打开登录页面\n2. 输入正确的用户名和密码\n3. 点击登录按钮\n4. 验证跳转到首页",
             "预期结果": "用户成功登录并跳转到系统首页",
             "优先级": "high",
@@ -51,7 +48,6 @@ class ExcelTemplateService:
         },
         {
             "测试用例名称": "商品搜索功能测试",
-            "测试用例描述": "验证用户能够正常搜索商品",
             "测试步骤": "1. 在搜索框输入商品关键词\n2. 点击搜索按钮\n3. 查看搜索结果",
             "预期结果": "显示包含关键词的相关商品列表",
             "优先级": "medium",
@@ -61,7 +57,6 @@ class ExcelTemplateService:
         },
         {
             "测试用例名称": "订单创建功能测试",
-            "测试用例描述": "验证用户能够成功创建订单",
             "测试步骤": "1. 选择商品加入购物车\n2. 进入结算页面\n3. 填写收货信息\n4. 选择支付方式\n5. 提交订单",
             "预期结果": "订单创建成功，生成订单号",
             "优先级": "critical",
@@ -157,7 +152,6 @@ class ExcelTemplateService:
                 # 构建测试用例对象
                 test_case = {
                     "name": str(row["测试用例名称"]).strip(),
-                    "description": str(row.get("测试用例描述", "")).strip() if not pd.isna(row.get("测试用例描述")) else "",
                     "task_content": str(row["测试步骤"]).strip(),
                     "expected_result": str(row["预期结果"]).strip(),
                     "priority": priority,

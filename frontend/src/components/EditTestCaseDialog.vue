@@ -20,24 +20,24 @@
         />
       </el-form-item>
 
-      <el-form-item label="描述" prop="description">
-        <el-input
-          v-model="form.description"
-          type="textarea"
-          :rows="3"
-          placeholder="请输入测试用例描述"
-          maxlength="500"
-          show-word-limit
-        />
-      </el-form-item>
-
-      <el-form-item label="任务内容" prop="task_content">
+      <el-form-item label="操作步骤" prop="task_content">
         <el-input
           v-model="form.task_content"
           type="textarea"
           :rows="4"
-          placeholder="请输入测试任务内容，例如：打开网站，执行登录操作等"
+          placeholder="请输入具体的操作步骤，例如：1. 打开网站 2. 点击登录按钮 3. 输入用户名密码等"
           maxlength="1000"
+          show-word-limit
+        />
+      </el-form-item>
+
+      <el-form-item label="预期结果" prop="expected_result">
+        <el-input
+          v-model="form.expected_result"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入预期测试结果"
+          maxlength="500"
           show-word-limit
         />
       </el-form-item>
@@ -89,17 +89,6 @@
           </el-tag>
         </div>
       </el-form-item>
-
-      <el-form-item label="预期结果" prop="expected_result">
-        <el-input
-          v-model="form.expected_result"
-          type="textarea"
-          :rows="3"
-          placeholder="请输入预期测试结果"
-          maxlength="500"
-          show-word-limit
-        />
-      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -144,7 +133,6 @@ const tagInput = ref('')
 
 const form = ref({
   name: '',
-  description: '',
   task_content: '',
   category: '',
   category_id: undefined as number | undefined,
@@ -172,7 +160,7 @@ const rules: FormRules = {
     { min: 1, max: 100, message: '长度在 1 到 100 个字符', trigger: 'blur' }
   ],
   task_content: [
-    { required: true, message: '请输入任务内容', trigger: 'blur' }
+    { required: true, message: '请输入操作步骤', trigger: 'blur' }
   ],
   category_id: [
     { required: false, message: '请选择分类', trigger: 'change' }
@@ -182,6 +170,10 @@ const rules: FormRules = {
   ],
   status: [
     { required: true, message: '请选择状态', trigger: 'change' }
+  ],
+  expected_result: [
+    { required: true, message: '请输入预期结果', trigger: 'blur' },
+    { min: 2, max: 500, message: '预期结果长度在 2 到 500 个字符', trigger: 'blur' }
   ]
 }
 
@@ -190,7 +182,6 @@ watch(() => props.testCase, (newTestCase) => {
   if (newTestCase) {
     form.value = {
       name: newTestCase.name,
-      description: newTestCase.description || '',
       task_content: newTestCase.task_content || '',
       category: newTestCase.category || '',
       category_id: newTestCase.category_id || undefined,

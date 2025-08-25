@@ -57,7 +57,6 @@ def test_test_cases_crud():
     print("4. 更新测试用例:")
     update_data = {
         "name": "更新后的API集成测试",
-        "description": "更新后的描述",
         "status": "inactive"
     }
     response = requests.put(f"{BASE_URL}/test-cases/{case_id}", json=update_data)

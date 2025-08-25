@@ -53,7 +53,6 @@ def demo_test_case_management():
     print("\n2. 创建新测试用例:")
     new_test_case = {
         "name": "GitHub搜索演示",
-        "description": "演示GitHub搜索功能",
         "task_content": """
 # GitHub搜索演示
 打开 https://github.com
