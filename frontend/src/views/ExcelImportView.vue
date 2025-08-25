@@ -332,6 +332,7 @@ import {
 
 // 导入API服务
 import { importTaskApi, categoryApi } from '@/services/api'
+import api from '@/services/api'
 import { useWebSocket } from '@/services/websocket'
 import type { Category } from '@/types/api'
 
@@ -451,27 +452,18 @@ const startImport = async () => {
     formData.append('import_options', JSON.stringify(finalImportOptions))
     formData.append('batch_size', batchSize.value.toString())
 
-    const response = await fetch('/api/import-tasks/', {
-      method: 'POST',
-      body: formData
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      ElMessage.success('导入任务已创建，开始处理...')
-      
-      // 设置当前任务
-      currentTask.value = result
-      clearFile()
-      
-      // 开始监听进度
-      startProgressMonitoring()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.detail || '创建导入任务失败')
-    }
-  } catch (error) {
-    ElMessage.error('创建导入任务失败')
+    const result = await importTaskApi.create(formData)
+    ElMessage.success('导入任务已创建，开始处理...')
+    
+    // 设置当前任务
+    currentTask.value = result
+    clearFile()
+    
+    // 开始监听进度
+    startProgressMonitoring()
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.detail || error.message || '创建导入任务失败'
+    ElMessage.error(errorMessage)
     console.error('Import error:', error)
   } finally {
     starting.value = false
@@ -516,17 +508,14 @@ const cancelTask = async () => {
     })
 
     cancelling.value = true
-    const response = await fetch(`/api/import-tasks/${currentTask.value.id}/cancel`, {
-      method: 'POST'
-    })
-
-    if (response.ok) {
-      ElMessage.success('任务已取消')
-    } else {
-      ElMessage.error('取消任务失败')
+    await importTaskApi.cancel(currentTask.value.id)
+    ElMessage.success('任务已取消')
+  } catch (error: any) {
+    // 检查是否是用户取消的操作
+    if (error !== 'cancel') {
+      const errorMessage = error.response?.data?.detail || error.message || '取消任务失败'
+      ElMessage.error(errorMessage)
     }
-  } catch {
-    // 用户取消操作
   } finally {
     cancelling.value = false
   }
@@ -536,13 +525,10 @@ const refreshTask = async () => {
   if (!currentTask.value) return
 
   try {
-    const response = await fetch(`/api/import-tasks/${currentTask.value.id}/status`)
-    if (response.ok) {
-      const status = await response.json()
-      // 更新当前任务状态
-      Object.assign(currentTask.value, status)
-      errorMessages.value = status.error_messages || []
-    }
+    const status = await importTaskApi.getStatus(currentTask.value.id)
+    // 更新当前任务状态
+    Object.assign(currentTask.value, status)
+    errorMessages.value = status.error_messages || []
   } catch (error) {
     console.error('刷新任务状态失败:', error)
   }
@@ -563,21 +549,18 @@ const viewTaskDetail = (task: ImportTask) => {
 const loadTasks = async () => {
   loadingHistory.value = true
   try {
-    const response = await fetch('/api/import-tasks/')
-    if (response.ok) {
-      const result = await response.json()
-      taskHistory.value = result.tasks
-      hasRunningTask.value = result.has_running_task
+    const result = await importTaskApi.getList()
+    taskHistory.value = result.tasks
+    hasRunningTask.value = result.has_running_task
 
-      // 如果有正在运行的任务，找到它并设置为当前任务
-      if (hasRunningTask.value && !currentTask.value) {
-        const runningTask = taskHistory.value.find(task => 
-          task.status === 'running' || task.status === 'pending'
-        )
-        if (runningTask) {
-          currentTask.value = runningTask
-          startProgressMonitoring()
-        }
+    // 如果有正在运行的任务，找到它并设置为当前任务
+    if (hasRunningTask.value && !currentTask.value) {
+      const runningTask = taskHistory.value.find(task => 
+        task.status === 'running' || task.status === 'pending'
+      )
+      if (runningTask) {
+        currentTask.value = runningTask
+        startProgressMonitoring()
       }
     }
   } catch (error) {
@@ -626,7 +609,11 @@ const formatDateTime = (dateStr: string) => {
 const downloadTemplate = async () => {
   downloadingTemplate.value = true
   try {
-    const response = await fetch('/api/import-tasks/template/download')
+    // 使用axios实例获取配置的基础URL
+    const baseURL = (api as any).defaults.baseURL || '/api'
+    const downloadUrl = `${baseURL}/import-tasks/template/download`
+    
+    const response = await fetch(downloadUrl)
     if (response.ok) {
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
