@@ -72,6 +72,9 @@ export const testCaseApi = {
   // 删除测试用例
   delete: (id: number) => api.delete(`/test-cases/${id}/`) as unknown as Promise<void>,
   
+  // 批量删除测试用例
+  batchDelete: (ids: number[]) => api.delete('/test-cases/batch/delete/', { data: ids }) as unknown as Promise<{message: string; deleted_count: number; requested_count: number; deleted_names: string[]}>,
+  
   // 预览Excel文件
   previewExcel: (formData: FormData) => 
     api.post('/test-cases/preview-excel/', formData, {

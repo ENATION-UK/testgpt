@@ -104,6 +104,39 @@ async def delete_test_case(test_case_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"测试用例 {db_test_case.name} 已删除"}
 
+@router.delete("/batch/delete")
+async def batch_delete_test_cases(
+    test_case_ids: List[int],
+    db: Session = Depends(get_db)
+):
+    """批量删除测试用例（软删除）"""
+    if not test_case_ids:
+        raise HTTPException(status_code=400, detail="请至少选择一个测试用例")
+    
+    # 查询所有需要删除的测试用例
+    db_test_cases = db.query(TestCase).filter(
+        TestCase.id.in_(test_case_ids),
+        TestCase.is_deleted == False
+    ).all()
+    
+    if not db_test_cases:
+        raise HTTPException(status_code=404, detail="未找到任何可删除的测试用例")
+    
+    # 批量设置删除标志
+    deleted_names = []
+    for test_case in db_test_cases:
+        test_case.is_deleted = True
+        deleted_names.append(test_case.name)
+    
+    db.commit()
+    
+    return {
+        "message": f"成功删除 {len(db_test_cases)} 个测试用例",
+        "deleted_count": len(db_test_cases),
+        "requested_count": len(test_case_ids),
+        "deleted_names": deleted_names
+    }
+
 @router.get("/status/{status}")
 async def get_test_cases_by_status(status: str, db: Session = Depends(get_db)):
     """根据状态获取测试用例"""

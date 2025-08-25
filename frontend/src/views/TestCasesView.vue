@@ -19,6 +19,14 @@
           <el-icon><Operation /></el-icon>
           批量执行
         </el-button>
+        <el-button 
+          type="danger" 
+          :disabled="selectedTestCases.length === 0" 
+          @click="handleBatchDelete"
+        >
+          <el-icon><Delete /></el-icon>
+          批量删除 ({{ selectedTestCases.length }})
+        </el-button>
       </div>
     </div>
 
@@ -229,7 +237,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, ArrowDown, Upload, Operation, Folder, InfoFilled } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Upload, Operation, Folder, InfoFilled, Delete } from '@element-plus/icons-vue'
 import { testCaseApi, testExecutionApi, batchExecutionApi, categoryApi } from '@/services/api'
 import type { TestCase, Category } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
@@ -244,6 +252,7 @@ const showViewDialog = ref(false)
 const showEditDialog = ref(false)
 const showBatchExecuteDialog = ref(false) // Added for batch execute dialog
 const selectedTestCase = ref<TestCase | null>(null)
+const selectedTestCases = ref<TestCase[]>([]) // 用于存储选中的测试用例
 
 // 分类相关
 const categoryOptions = ref<Category[]>([])
@@ -461,7 +470,44 @@ const deleteTestCase = async (testCase: TestCase) => {
   }
 }
 
+// 批量删除处理函数
+const handleBatchDelete = async () => {
+  if (selectedTestCases.value.length === 0) {
+    ElMessage.warning('请至少选择一个测试用例')
+    return
+  }
+
+  try {
+    const testCaseNames = selectedTestCases.value.map(tc => tc.name).join('、')
+    await ElMessageBox.confirm(
+      `确定要删除以下 ${selectedTestCases.value.length} 个测试用例吗？\n\n${testCaseNames}`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: false
+      }
+    )
+    
+    const testCaseIds = selectedTestCases.value.map(tc => tc.id)
+    const result = await testCaseApi.batchDelete(testCaseIds)
+    
+    ElMessage.success(`${result.message}，共删除 ${result.deleted_count} 个测试用例`)
+    
+    // 重新加载数据并清空选中状态
+    selectedTestCases.value = []
+    loadTestCases()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败')
+    }
+  }
+}
+
 const handleSelectionChange = (selection: TestCase[]) => {
+  // 更新选中的测试用例
+  selectedTestCases.value = selection
   // 更新批量执行表单中的选中测试用例
   batchExecuteForm.value.selectedTestCases = selection.map(item => item.id)
 }
