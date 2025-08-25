@@ -141,17 +141,9 @@ const previewExcelFile = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
     
-    const response = await fetch('/api/test-cases/preview-excel', {
-      method: 'POST',
-      body: formData
-    })
-    
-    if (response.ok) {
-      const data = await response.json()
-      previewData.value = data.preview || []
-    } else {
-      ElMessage.error('预览Excel文件失败')
-    }
+    // 使用API服务而不是直接fetch
+    const response = await testCaseApi.previewExcel(formData)
+    previewData.value = response.preview || []
   } catch (error) {
     ElMessage.error('预览Excel文件失败')
   }
@@ -169,20 +161,11 @@ const handleImport = async () => {
     formData.append('file', selectedFile.value)
     formData.append('options', JSON.stringify(importOptions.value))
     
-    const response = await fetch('/api/test-cases/import-excel', {
-      method: 'POST',
-      body: formData
-    })
-    
-    if (response.ok) {
-      const result = await response.json()
-      ElMessage.success(`成功导入 ${result.imported_count} 个测试用例`)
-      emit('imported')
-      handleClose()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.detail || '导入失败')
-    }
+    // 使用API服务而不是直接fetch
+    const result = await testCaseApi.importExcel(formData)
+    ElMessage.success(`成功导入 ${result.imported_count} 个测试用例`)
+    emit('imported')
+    handleClose()
   } catch (error) {
     ElMessage.error('导入失败')
   } finally {

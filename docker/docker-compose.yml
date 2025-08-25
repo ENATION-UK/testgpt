@@ -13,8 +13,6 @@ services:
       - PORT=8000
       - USE_MYSQL=false
       - DISPLAY=:99
-      - PLAYWRIGHT_BROWSERS_PATH=/home/playwright/.cache/ms-playwright
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DOCKER_ENV=true
       - DATA_DIR=/app/data
       - DB_NAME=autotest.db
