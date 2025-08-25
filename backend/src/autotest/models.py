@@ -217,6 +217,7 @@ class ImportTaskCreate(BaseModel):
     """创建导入任务"""
     name: str = Field(description="任务名称")
     file_name: str = Field(description="Excel文件名")
+    import_mode: str = Field(default="smart", description="导入模式: standard(标准模版) 或 smart(智能识别)")
     import_options: Dict[str, Any] = Field(description="导入选项")
     batch_size: int = Field(default=10, description="批次大小")
 
@@ -226,6 +227,7 @@ class ImportTaskResponse(BaseModel):
     name: str
     file_name: str
     status: str
+    import_mode: Optional[str] = "smart"
     total_rows: int
     processed_rows: int
     success_rows: int

@@ -3,9 +3,11 @@
 """
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
+import os
 
 from ..database import get_db
 from ..models import (
@@ -15,6 +17,7 @@ from ..models import (
     ImportTaskListResponse
 )
 from ..services.async_import_service import AsyncImportService
+from ..services.excel_template_service import ExcelTemplateService
 
 router = APIRouter(prefix="/import-tasks", tags=["导入任务管理"])
 
@@ -25,12 +28,17 @@ async_import_service = AsyncImportService()
 async def create_import_task(
     file: UploadFile = File(...),
     name: str = Form(...),
+    import_mode: str = Form("smart"),
     import_options: str = Form(...),
     batch_size: int = Form(10),
     db: Session = Depends(get_db)
 ):
     """创建导入任务"""
     try:
+        # 验证导入模式
+        if import_mode not in ["standard", "smart"]:
+            raise HTTPException(status_code=400, detail="导入模式必须是 'standard' 或 'smart'")
+        
         # 解析导入选项
         options = json.loads(import_options)
         
@@ -38,6 +46,7 @@ async def create_import_task(
         task_data = ImportTaskCreate(
             name=name,
             file_name=file.filename,
+            import_mode=import_mode,
             import_options=options,
             batch_size=batch_size
         )
@@ -85,6 +94,19 @@ async def check_running_task(db: Session = Depends(get_db)):
     """检查是否有正在运行的任务"""
     has_running = await async_import_service.has_running_task(db)
     return {"has_running_task": has_running}
+
+@router.get("/template/download")
+async def download_excel_template():
+    """下载标准Excel导入模版"""
+    try:
+        template_path = ExcelTemplateService.generate_template_file()
+        return FileResponse(
+            path=template_path,
+            filename="测试用例导入模版.xlsx",
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"下载模版失败: {str(e)}")
 
 @router.get("/{task_id}", response_model=ImportTaskResponse)
 async def get_import_task(

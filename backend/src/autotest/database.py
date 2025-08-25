@@ -208,6 +208,7 @@ class ImportTask(Base):
     name = Column(String(255), nullable=False, comment="导入任务名称")
     file_name = Column(String(255), nullable=False, comment="Excel文件名")
     file_path = Column(String(500), comment="文件存储路径")
+    import_mode = Column(String(20), default="smart", comment="导入模式: standard(标准模版) 或 smart(智能识别)")
     status = Column(String(50), default="pending", comment="任务状态: pending, running, completed, failed, cancelled")
     total_rows = Column(Integer, default=0, comment="总行数")
     processed_rows = Column(Integer, default=0, comment="已处理行数")

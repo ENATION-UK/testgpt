@@ -16,11 +16,12 @@ from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional
 from fastapi import UploadFile, HTTPException
 
-from ..database import get_db, ImportTask, TestCase
+from ..database import get_db, ImportTask, TestCase, Category
 from ..models import ImportTaskCreate, ImportTaskResponse, ImportTaskStatus
 from ..websocket_manager import websocket_manager
 from .llm_service import LLMService
 from .excel_utils import convert_excel_to_test_cases
+from .excel_template_service import ExcelTemplateService
 
 
 class AsyncImportService:
@@ -62,6 +63,7 @@ class AsyncImportService:
                 name=task_data.name,
                 file_name=task_data.file_name,
                 file_path=str(file_path),
+                import_mode=task_data.import_mode,
                 status="pending",
                 total_rows=total_rows,
                 total_batches=total_batches,
@@ -147,7 +149,7 @@ class AsyncImportService:
                 
                 # 处理当前批次
                 batch_success, batch_failed, batch_errors = await self._process_batch(
-                    batch_df, task.import_options, db
+                    batch_df, task.import_options, task.import_mode, db
                 )
                 
                 success_count += batch_success
@@ -233,7 +235,8 @@ class AsyncImportService:
     async def _process_batch(
         self, 
         batch_df: pd.DataFrame, 
-        import_options: dict, 
+        import_options: dict,
+        import_mode: str,
         db: Session
     ) -> tuple[int, int, List[dict]]:
         """处理单个批次的数据"""
@@ -242,8 +245,13 @@ class AsyncImportService:
         error_log = []
         
         try:
-            # 使用LLM服务或规则转换
-            test_cases = await LLMService.analyze_excel_with_llm(batch_df, import_options)
+            # 根据导入模式选择不同的解析方式
+            if import_mode == "standard":
+                # 标准模版解析
+                test_cases = ExcelTemplateService.parse_standard_template(batch_df)
+            else:
+                # 智能识别解析（使用LLM服务或规则转换）
+                test_cases = await LLMService.analyze_excel_with_llm(batch_df, import_options)
             
             # 逐行创建测试用例
             for i, test_case_data in enumerate(test_cases):
@@ -258,6 +266,24 @@ class AsyncImportService:
                             "timestamp": datetime.now().isoformat()
                         })
                         continue
+                    
+                    # 处理分类：优先使用用户选择的分类
+                    selected_category_id = import_options.get('selectedCategoryId')
+                    if selected_category_id:
+                        # 验证分类是否存在
+                        category = db.query(Category).filter(
+                            Category.id == selected_category_id,
+                            Category.is_deleted == False
+                        ).first()
+                        if category:
+                            test_case_data['category_id'] = selected_category_id
+                            test_case_data['category'] = category.name
+                        else:
+                            # 如果选择的分类不存在，使用默认分类
+                            test_case_data['category'] = import_options.get('defaultCategory', '导入')
+                    else:
+                        # 没有选择分类，使用默认分类
+                        test_case_data['category'] = import_options.get('defaultCategory', '导入')
                     
                     # 创建测试用例
                     db_test_case = TestCase(**test_case_data)

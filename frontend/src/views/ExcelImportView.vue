@@ -11,6 +11,56 @@
         <span>选择Excel文件</span>
       </template>
       
+      <!-- 导入模式选择 -->
+      <div class="import-mode-section">
+        <h3>导入模式</h3>
+        <el-radio-group v-model="importMode" class="mode-selector">
+          <el-radio label="smart" size="large">
+            <div class="mode-option">
+              <div class="mode-title">🤖 智能识别模式</div>
+              <div class="mode-desc">支持各种格式的Excel文件，自动识别列名和内容</div>
+            </div>
+          </el-radio>
+          <el-radio label="standard" size="large">
+            <div class="mode-option">
+              <div class="mode-title">📄 标准模版模式</div>
+              <div class="mode-desc">使用统一的标准模版格式，保证数据质量</div>
+            </div>
+          </el-radio>
+        </el-radio-group>
+        
+        <!-- 模版下载区域 -->
+        <div v-if="importMode === 'standard'" class="template-download">
+          <el-alert
+            title="使用标准模版"
+            type="info"
+            description="请先下载标准模版，按照模版格式填写数据后上传"
+            show-icon
+            :closable="false"
+          />
+          <div class="template-actions">
+            <el-button type="primary" @click="downloadTemplate" :loading="downloadingTemplate">
+              <el-icon><Download /></el-icon>
+              下载标准模版
+            </el-button>
+            <el-button type="info" @click="viewTemplateSample">
+              <el-icon><View /></el-icon>
+              查看样例
+            </el-button>
+          </div>
+        </div>
+        
+        <div v-else class="smart-mode-info">
+          <el-alert
+            title="智能识别模式"
+            type="success"
+            description="支持各种列名格式，如：标题/名称/Name、步骤描述/任务内容、预期结果等"
+            show-icon
+            :closable="false"
+          />
+        </div>
+      </div>
+
       <div class="upload-section">
         <el-upload
           ref="uploadRef"
@@ -79,7 +129,15 @@
             </el-col>
             <el-col :span="8">
               <el-form-item label="默认分类">
-                <el-input v-model="importOptions.defaultCategory" placeholder="输入默认分类" />
+                <el-cascader
+                  v-model="selectedCategoryId"
+                  :options="categoryOptions"
+                  :props="cascaderProps"
+                  placeholder="选择默认分类"
+                  clearable
+                  filterable
+                  :loading="loadingCategories"
+                />
               </el-form-item>
             </el-col>
           </el-row>
@@ -268,18 +326,21 @@ import {
   Warning, 
   Close, 
   View, 
-  Refresh 
+  Refresh,
+  Download 
 } from '@element-plus/icons-vue'
 
 // 导入API服务
-import { importTaskApi } from '@/services/api'
+import { importTaskApi, categoryApi } from '@/services/api'
 import { useWebSocket } from '@/services/websocket'
+import type { Category } from '@/types/api'
 
 // 接口定义
 interface ImportOptions {
   defaultStatus: string
   defaultPriority: string
   defaultCategory: string
+  selectedCategoryId?: number | null
 }
 
 interface ImportTask {
@@ -307,6 +368,10 @@ const hasRunningTask = ref(false)
 const currentTask = ref<ImportTask | null>(null)
 const taskHistory = ref<ImportTask[]>([])
 const errorMessages = ref<string[]>([])
+const importMode = ref('smart') // 导入模式：smart 或 standard
+const downloadingTemplate = ref(false) // 下载模版状态
+const categoryOptions = ref<Category[]>([]) // 分类选项
+const loadingCategories = ref(false) // 加载分类状态
 
 // 表单数据
 const taskName = ref('')
@@ -317,8 +382,20 @@ const importOptions = ref<ImportOptions>({
   defaultCategory: '导入'
 })
 
+// 分类选择
+const selectedCategoryId = ref<number | null>(null)
+
 // WebSocket连接
 const { connect, disconnect, onMessage } = useWebSocket()
+
+// 级联选择器配置
+const cascaderProps = {
+  value: 'id',
+  label: 'name',
+  children: 'children',
+  checkStrictly: true, // 允许选择父分类
+  emitPath: false
+}
 
 // 计算属性
 const getBatchProgress = computed(() => {
@@ -361,10 +438,17 @@ const startImport = async () => {
 
   starting.value = true
   try {
+    // 准备导入选项，包括选择的分类
+    const finalImportOptions = {
+      ...importOptions.value,
+      selectedCategoryId: selectedCategoryId.value
+    }
+    
     const formData = new FormData()
     formData.append('file', selectedFile.value)
     formData.append('name', taskName.value)
-    formData.append('import_options', JSON.stringify(importOptions.value))
+    formData.append('import_mode', importMode.value)
+    formData.append('import_options', JSON.stringify(finalImportOptions))
     formData.append('batch_size', batchSize.value.toString())
 
     const response = await fetch('/api/import-tasks/', {
@@ -538,9 +622,54 @@ const formatDateTime = (dateStr: string) => {
   return new Date(dateStr).toLocaleString()
 }
 
+// 模版相关功能
+const downloadTemplate = async () => {
+  downloadingTemplate.value = true
+  try {
+    const response = await fetch('/api/import-tasks/template/download')
+    if (response.ok) {
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = '测试用例导入模版.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      ElMessage.success('模版下载成功')
+    } else {
+      ElMessage.error('模版下载失败')
+    }
+  } catch (error) {
+    ElMessage.error('模版下载失败')
+    console.error('Download error:', error)
+  } finally {
+    downloadingTemplate.value = false
+  }
+}
+
+const viewTemplateSample = () => {
+  ElMessage.info('模版中包含详细的使用说明和示例数据，请下载后查看')
+}
+
+// 分类相关功能
+const loadCategories = async () => {
+  loadingCategories.value = true
+  try {
+    categoryOptions.value = await categoryApi.getTree(false)
+  } catch (error) {
+    console.error('加载分类失败:', error)
+    ElMessage.error('加载分类失败')
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
 // 生命周期
 onMounted(() => {
   loadTasks()
+  loadCategories()
   connect()
 })
 
@@ -703,5 +832,79 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.import-mode-section {
+  margin-bottom: 24px;
+}
+
+.import-mode-section h3 {
+  margin: 0 0 16px 0;
+  color: #303133;
+}
+
+.mode-selector {
+  width: 100%;
+}
+
+.mode-selector .el-radio {
+  width: 48%;
+  margin-right: 4%;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.3s;
+}
+
+.mode-selector .el-radio:nth-child(even) {
+  margin-right: 0;
+}
+
+.mode-selector .el-radio:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.mode-selector .el-radio.is-checked {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.mode-option {
+  margin-left: 8px;
+}
+
+.mode-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.4;
+}
+
+.template-download {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.template-actions {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.template-actions .el-button {
+  margin: 0 8px;
+}
+
+.smart-mode-info {
+  margin-top: 16px;
 }
 </style>
