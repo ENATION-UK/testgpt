@@ -15,6 +15,7 @@ from pathlib import Path
 from datetime import datetime
 
 from browser_use.llm import ChatDeepSeek
+from browser_use.browser.profile import BrowserProfile
 
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -181,7 +182,8 @@ async def main():
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--disable-web-security',
-                '--disable-features=VizDisplayCompositor'
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions'
             ]
         )
         context = await browser.new_context()
@@ -204,6 +206,12 @@ https://seller-bbc740.javamall.com.cn/
         # 使用Browser Use Agent
         from browser_use import Agent
         
+        # 创建 BrowserProfile 禁用默认扩展
+        browser_profile = BrowserProfile(
+            enable_default_extensions=False,
+            headless=False
+        )
+        
         # Pass the page directly to Agent
         agent = Agent(
             task=task,
@@ -213,6 +221,7 @@ https://seller-bbc740.javamall.com.cn/
             save_conversation_path='/tmp/javashop4',
             controller=test_controller,
             extend_system_message=TEST_SYSTEM_PROMPT,
+            browser_profile=browser_profile,
 
         )
 

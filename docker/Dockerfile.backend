@@ -81,6 +81,10 @@ RUN pip install --no-cache-dir -e .
 # 复制应用代码 - 只复制必要的文件，过滤掉 .venv 等大目录
 COPY src/ ./src/
 COPY run.py ./
+COPY backend/start.sh ./start.sh
+
+# 设置start.sh为可执行
+RUN chmod +x ./start.sh
 
 
 # 清理代理环境变量
@@ -89,5 +93,5 @@ RUN unset https_proxy http_proxy all_proxy HTTPS_PROXY HTTP_PROXY
 # 暴露端口
 EXPOSE 8000
 
-# 启动命令 - 使用bash直接执行
-CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 2 && python run.py"]
+# 启动命令 - 使用start.sh脚本启动
+CMD ["./start.sh"]

@@ -29,6 +29,7 @@ def ensure_timezone_aware(dt):
     return dt
 
 from browser_use.controller.service import Controller
+from browser_use.browser.profile import BrowserProfile
 from .services.multi_llm_service import MultiLLMService
 from playwright.async_api import async_playwright
 
@@ -651,6 +652,12 @@ class TestExecutor:
         from playwright.async_api import async_playwright
         import asyncio
         
+        # 创建 BrowserProfile 禁用默认扩展
+        browser_profile = BrowserProfile(
+            enable_default_extensions=False,
+            headless=headless
+        )
+        
         async with async_playwright() as p:
             # 启动浏览器
             browser = await p.chromium.launch(
@@ -660,6 +667,7 @@ class TestExecutor:
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas',
+                    '--disable-extensions',
                     '--no-first-run',
                     '--no-zygote',
                     '--disable-gpu',
@@ -705,6 +713,7 @@ class TestExecutor:
                     use_vision=True,
                     controller=self.test_controller,
                     extend_system_message=final_prompt,
+                    browser_profile=browser_profile,
                 )
                 
                 self.logger.info(f"开始执行任务: {test_case.task_content[:100]}...")
@@ -974,6 +983,13 @@ class TestExecutor:
             
             # 创建浏览器实例
             from playwright.async_api import async_playwright
+            
+            # 创建 BrowserProfile 禁用默认扩展
+            browser_profile = BrowserProfile(
+                enable_default_extensions=False,
+                headless=headless
+            )
+            
             async with async_playwright() as p:
                 self.logger.info(f"启动浏览器实例，headless: {headless}")
                 browser = await p.chromium.launch(
@@ -982,6 +998,7 @@ class TestExecutor:
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--disable-dev-shm-usage',
+                        '--disable-extensions',
                         '--disable-accelerated-2d-canvas',
                         '--no-first-run',
                         '--no-zygote',
@@ -1020,6 +1037,7 @@ class TestExecutor:
                         use_vision=True,
                         controller=self.test_controller,
                         extend_system_message=TEST_SYSTEM_PROMPT,
+                        browser_profile=browser_profile,
                     )
                     self.logger.info("Agent实例创建成功")
                     

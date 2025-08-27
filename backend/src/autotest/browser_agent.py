@@ -13,6 +13,7 @@ import json
 
 from browser_use.llm.openai.chat import ChatOpenAI
 from browser_use.llm import ChatDeepSeek
+from browser_use.browser.profile import BrowserProfile
 from playwright.async_api import async_playwright, Browser, Page
 from dotenv import load_dotenv
 
@@ -103,7 +104,8 @@ class BrowserAgent:
                     '--disable-dev-shm-usage',
                     '--disable-gpu',
                     '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor'
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-extensions'
                 ]
             )
             self.context = await self.browser.new_context()
@@ -148,6 +150,12 @@ class BrowserAgent:
             try:
                 from browser_use import Agent
                 
+                # 创建 BrowserProfile 禁用默认扩展
+                browser_profile = BrowserProfile(
+                    enable_default_extensions=False,
+                    headless=False
+                )
+                
                 # 创建Agent
                 agent = Agent(
                     task=task,
@@ -155,6 +163,7 @@ class BrowserAgent:
                     page=self.page,
                     use_vision=use_vision,
                     save_conversation_path=save_conversation_path,
+                    browser_profile=browser_profile,
                 )
                 
                 # 执行任务
