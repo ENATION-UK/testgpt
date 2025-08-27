@@ -81,7 +81,7 @@ RUN pip install --no-cache-dir -e .
 # 复制应用代码 - 只复制必要的文件，过滤掉 .venv 等大目录
 COPY src/ ./src/
 COPY run.py ./
-COPY backend/start.sh ./start.sh
+COPY start.sh ./start.sh
 
 # 设置start.sh为可执行
 RUN chmod +x ./start.sh
