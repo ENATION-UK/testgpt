@@ -3,11 +3,9 @@
 基于Browser Use的智能Web自动化测试工具，支持语义化测试用例编写和详细的测试结果记录。
 
 <div align="center">
-  <h1>itBuilder</h1>
-
-  <p>扫码加入交流群，与开发者交流，贡献创意。</p>
 
  <img src="https://www.itbuilder.cn/group" alt="加入交流群">
+  <p>扫码加入交流群，与开发者交流，贡献创意。</p>
 
 </div>
 
