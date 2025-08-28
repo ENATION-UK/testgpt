@@ -115,16 +115,6 @@ show_completion_info() {
     echo ""
     echo "=== 构建完成 ==="
     echo ""
-    echo "优势："
-    echo "  - 基础镜像只需构建一次，后续构建速度大大提升"
-    echo "  - 系统依赖和Playwright浏览器已预装"
-    echo "  - 开发调试时只需重新构建应用层"
-    echo ""
-    echo "常用命令："
-    echo "  重新构建基础镜像: docker build -f docker/Dockerfile.base -t autotest-base:latest ."
-    echo "  重新构建后端: docker build -f docker/Dockerfile.backend -t docker-backend:latest ../backend"
-    echo "  重新构建前端: docker build -f docker/Dockerfile.frontend -t docker-frontend:latest ../frontend"
-    echo "  查看镜像: docker images | grep autotest"
 }
 
 # ========================================
