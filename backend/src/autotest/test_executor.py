@@ -585,6 +585,24 @@ class TestExecutor:
             
             db.commit()
             
+            # 保存测试步骤到数据库
+            for i, step_data in enumerate(result.get("test_steps", [])):
+                step = TestStep(
+                    execution_id=execution.id,
+                    step_name=step_data["step_name"],
+                    step_order=i + 1,
+                    status=step_data["status"],
+                    description=step_data["description"],
+                    error_message=step_data.get("error_message"),
+                    screenshot_path=step_data.get("screenshot_path"),
+                    duration_seconds=step_data.get("duration_seconds"),
+                    started_at=beijing_now(),
+                    completed_at=beijing_now()
+                )
+                db.add(step)
+            
+            db.commit()
+            
             # 保存 history 到缓存（如果执行成功且有 agent）
             history_path = ""
             if result.get("success") and result.get("agent"):
