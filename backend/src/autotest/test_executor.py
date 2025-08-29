@@ -717,10 +717,8 @@ class TestExecutor:
                 
                 # 使用多模型服务创建LLM实例
                 config = self.multi_llm_service._load_multi_model_config()
-                request_config = self.multi_llm_service._get_next_available_config(config)
+                request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
                 print(f"使用API key:{request_config.model_type}-- {request_config.api_key}")
-                if not request_config:
-                    raise Exception("没有可用的API key配置")
                 
                 llm = self.multi_llm_service._create_llm_instance(request_config)
                 
@@ -1038,9 +1036,7 @@ class TestExecutor:
                     # 使用多模型服务创建LLM实例
                     self.logger.info("开始创建LLM实例...")
                     config = self.multi_llm_service._load_multi_model_config()
-                    request_config = self.multi_llm_service._get_next_available_config(config)
-                    if not request_config:
-                        raise Exception("没有可用的API key配置")
+                    request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
                     
                     llm = self.multi_llm_service._create_llm_instance(request_config)
                     self.logger.info("LLM实例创建成功")

@@ -136,6 +136,43 @@ class MultiLLMService:
             
             return None
     
+    async def _get_next_available_config_with_wait(self, config: MultiModelConfig, max_wait_time: int = 300) -> LLMRequestConfig:
+        """获取下一个可用的配置（支持等待机制）
+        
+        Args:
+            config: 多模型配置
+            max_wait_time: 最大等待时间（秒），默认5分钟
+            
+        Returns:
+            可用的LLM请求配置
+            
+        Raises:
+            Exception: 当超过最大等待时间或配置无效时
+        """
+        start_time = time.time()
+        wait_interval = 0.5  # 每次等待0.5秒
+        last_log_time = 0
+        
+        while True:
+            # 尝试获取可用配置
+            request_config = self._get_next_available_config(config)
+            if request_config:
+                return request_config
+            
+            # 检查是否超过最大等待时间
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= max_wait_time:
+                raise Exception(f"等待API密钥可用超时（{max_wait_time}秒），所有API密钥都达到限流上限")
+            
+            # 每10秒记录一次等待日志，避免日志过多
+            current_time = time.time()
+            if current_time - last_log_time >= 10:
+                self.logger.info(f"所有API密钥达到限流上限，等待中... 已等待 {elapsed_time:.1f} 秒")
+                last_log_time = current_time
+            
+            # 等待一段时间后重试
+            await asyncio.sleep(wait_interval)
+    
     def _create_llm_instance(self, request_config: LLMRequestConfig):
         """创建LLM实例"""
         if request_config.model_type == "deepseek":
@@ -161,10 +198,8 @@ class MultiLLMService:
         
         for attempt in range(max_retries):
             try:
-                # 获取下一个可用的配置
-                request_config = self._get_next_available_config(config)
-                if not request_config:
-                    raise Exception("没有可用的API key配置")
+                # 获取下一个可用的配置（支持等待）
+                request_config = await self._get_next_available_config_with_wait(config)
                 
                 # 创建LLM实例
                 llm = self._create_llm_instance(request_config)
@@ -179,6 +214,9 @@ class MultiLLMService:
                 if attempt == max_retries - 1:
                     raise Exception(f"所有API key都请求失败: {e}")
                 await asyncio.sleep(1)  # 等待1秒后重试
+        
+        # 这里不会执行到，但是为了类型检查安全
+        raise Exception("不应该执行到这里")
     
     async def get_multi_model_config(self) -> MultiModelConfigResponse:
         """获取多模型配置"""
