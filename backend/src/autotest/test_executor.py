@@ -1643,10 +1643,11 @@ class BatchTestExecutor:
             headless: 是否无头模式
             db: 数据库会话
         """
+        self.logger.info(f"🔍 [EXECUTION_DEBUG] 开始执行单个测试用例 {batch_test_case.test_case_id}，初始execution_id: {batch_test_case.execution_id}")
         try:
             # 检查任务是否被取消
             if batch_executor_manager.is_batch_cancelled(batch_test_case.batch_execution_id):
-                self.logger.info(f"批量执行任务 {batch_test_case.batch_execution_id} 已被取消，跳过测试用例 {batch_test_case.test_case_id}")
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 批量执行任务 {batch_test_case.batch_execution_id} 已被取消，跳过测试用例 {batch_test_case.test_case_id}，execution_id: {batch_test_case.execution_id}")
                 batch_test_case.status = "cancelled"
                 batch_test_case.completed_at = beijing_now()
                 batch_test_case.updated_at = beijing_now()
@@ -1658,10 +1659,11 @@ class BatchTestExecutor:
             batch_test_case.started_at = beijing_now()
             batch_test_case.updated_at = beijing_now()
             db.commit()
+            self.logger.info(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 已标记为运行中，execution_id: {batch_test_case.execution_id}")
             
             # 再次检查任务是否被取消（在开始执行前）
             if batch_executor_manager.is_batch_cancelled(batch_test_case.batch_execution_id):
-                self.logger.info(f"批量执行任务 {batch_test_case.batch_execution_id} 已被取消，停止测试用例 {batch_test_case.test_case_id}")
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 批量执行任务 {batch_test_case.batch_execution_id} 在执行前被取消，停止测试用例 {batch_test_case.test_case_id}，execution_id: {batch_test_case.execution_id}")
                 batch_test_case.status = "cancelled"
                 batch_test_case.completed_at = beijing_now()
                 batch_test_case.updated_at = beijing_now()
@@ -1669,8 +1671,10 @@ class BatchTestExecutor:
                 return
             
             # 执行测试用例
+            self.logger.info(f"🔍 [EXECUTION_DEBUG] 开始执行测试用例 {batch_test_case.test_case_id}，当前execution_id: {batch_test_case.execution_id}")
             try:
                 # 为批量执行创建执行记录
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 开始为测试用例 {batch_test_case.test_case_id} 创建执行记录")
                 execution = TestExecution(
                     test_case_id=batch_test_case.test_case_id,
                     execution_name=f"批量执行_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
@@ -1680,18 +1684,23 @@ class BatchTestExecutor:
                 db.add(execution)
                 db.commit()
                 db.refresh(execution)
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 成功创建执行记录 {execution.id} 给测试用例 {batch_test_case.test_case_id}")
                 
                 # 更新批量测试用例记录的执行ID
+                old_execution_id = batch_test_case.execution_id
                 batch_test_case.execution_id = execution.id
                 db.commit()
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} execution_id 从 {old_execution_id} 更新为 {execution.id}")
                 
                 # 执行测试用例，使用已创建的执行记录
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 开始调用 execute_test_case，测试用例 {batch_test_case.test_case_id}，执行记录 {execution.id}")
                 result = await self.test_executor.execute_test_case(
                     batch_test_case.test_case_id, 
                     headless, 
                     batch_test_case.batch_execution_id,
                     execution.id
                 )
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] execute_test_case 返回结果： {result}")
             except asyncio.CancelledError:
                 self.logger.info(f"测试用例 {batch_test_case.test_case_id} 被取消")
                 batch_test_case.status = "cancelled"
@@ -1701,7 +1710,39 @@ class BatchTestExecutor:
                 # 重新抛出取消异常
                 raise
             except Exception as e:
-                self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 时发生异常: {e}")
+                self.logger.error(f"😨 [EXECUTION_DEBUG] 执行测试用例 {batch_test_case.test_case_id} 时发生异常: {e}")
+                self.logger.error(f"🔍 [EXECUTION_DEBUG] 异常时的execution_id: {batch_test_case.execution_id}")
+                
+                # 如果还没有创建执行记录，创建一个简单的失败记录
+                if not batch_test_case.execution_id:
+                    self.logger.warning(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 在异常时没有execution_id，尝试创建失败记录")
+                    try:
+                        execution = TestExecution(
+                            test_case_id=batch_test_case.test_case_id,
+                            execution_name=f"批量执行_失败_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
+                            status="failed",
+                            overall_status="FAILED",
+                            error_message=str(e),
+                            started_at=beijing_now(),
+                            completed_at=beijing_now(),
+                            total_steps=0,
+                            passed_steps=0,
+                            failed_steps=0,
+                            skipped_steps=0,
+                            summary=f"测试用例执行失败: {str(e)}",
+                            recommendations="请检查测试用例配置或系统环境设置"
+                        )
+                        db.add(execution)
+                        db.commit()
+                        db.refresh(execution)
+                        
+                        batch_test_case.execution_id = execution.id
+                        self.logger.info(f"🔍 [EXECUTION_DEBUG] 为失败测试用例 {batch_test_case.test_case_id} 创建了执行记录 {execution.id}")
+                    except Exception as create_error:
+                        self.logger.error(f"😨 [EXECUTION_DEBUG] 创建失败执行记录失败: {create_error}")
+                else:
+                    self.logger.info(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 在异常时已经有execution_id: {batch_test_case.execution_id}")
+                
                 batch_test_case.status = "failed"
                 batch_test_case.completed_at = beijing_now()
                 batch_test_case.updated_at = beijing_now()
@@ -1718,14 +1759,21 @@ class BatchTestExecutor:
                 return
             
             # 更新执行记录ID
+            self.logger.info(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 执行完成，当前execution_id: {batch_test_case.execution_id}")
             if "execution_id" in result:
+                old_id = batch_test_case.execution_id
                 batch_test_case.execution_id = result["execution_id"]
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 从结果中更新execution_id: {old_id} -> {result['execution_id']}")
+            else:
+                self.logger.warning(f"🔍 [EXECUTION_DEBUG] 结果中没有execution_id，保持原有值: {batch_test_case.execution_id}")
             
             # 更新状态
             if result["success"]:
                 batch_test_case.status = "completed"
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 执行成功，最终execution_id: {batch_test_case.execution_id}")
             else:
                 batch_test_case.status = "failed"
+                self.logger.warning(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 执行失败，最终execution_id: {batch_test_case.execution_id}")
             
             batch_test_case.completed_at = beijing_now()
             batch_test_case.updated_at = beijing_now()
@@ -1784,7 +1832,39 @@ class BatchTestExecutor:
                 )
                 
         except Exception as e:
-            self.logger.error(f"执行测试用例 {batch_test_case.test_case_id} 失败: {e}")
+            self.logger.error(f"😨 [EXECUTION_DEBUG] 执行测试用例 {batch_test_case.test_case_id} 失败: {e}")
+            self.logger.error(f"🔍 [EXECUTION_DEBUG] 外层异常时的execution_id: {batch_test_case.execution_id}")
+            
+            # 如果还没有创建执行记录，创建一个简单的失败记录
+            if not batch_test_case.execution_id:
+                self.logger.warning(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 在外层异常时没有execution_id，尝试创建失败记录")
+                try:
+                    execution = TestExecution(
+                        test_case_id=batch_test_case.test_case_id,
+                        execution_name=f"批量执行_异常_{beijing_now().strftime('%Y%m%d_%H%M%S')}",
+                        status="failed",
+                        overall_status="FAILED",
+                        error_message=str(e),
+                        started_at=beijing_now(),
+                        completed_at=beijing_now(),
+                        total_steps=0,
+                        passed_steps=0,
+                        failed_steps=0,
+                        skipped_steps=0,
+                        summary=f"测试用例执行过程中发生异常: {str(e)}",
+                        recommendations="请检查测试用例配置、系统环境或网络连接"
+                    )
+                    db.add(execution)
+                    db.commit()
+                    db.refresh(execution)
+                    
+                    batch_test_case.execution_id = execution.id
+                    self.logger.info(f"🔍 [EXECUTION_DEBUG] 为异常测试用例 {batch_test_case.test_case_id} 创建了执行记录 {execution.id}")
+                except Exception as create_error:
+                    self.logger.error(f"😨 [EXECUTION_DEBUG] 创建异常执行记录失败: {create_error}")
+            else:
+                self.logger.info(f"🔍 [EXECUTION_DEBUG] 测试用例 {batch_test_case.test_case_id} 在外层异常时已经有execution_id: {batch_test_case.execution_id}")
+            
             batch_test_case.status = "failed"
             batch_test_case.completed_at = beijing_now()
             batch_test_case.updated_at = beijing_now()
