@@ -35,6 +35,7 @@ from playwright.async_api import async_playwright
 
 from .database import TestCase, TestExecution, TestStep, SessionLocal, BatchExecution, BatchExecutionTestCase
 from .websocket_manager import websocket_manager
+from .browser_event_collector import event_manager, BrowserUseEventCollector
 
 # 任务上下文管理类
 class TaskContext:
@@ -469,7 +470,19 @@ class TestExecutor:
                             screenshot_path=step_data.get("screenshot_path"),
                             duration_seconds=step_data.get("duration_seconds"),
                             started_at=beijing_now(),
-                            completed_at=beijing_now()
+                            completed_at=beijing_now(),
+                            # 新增字段
+                            url=step_data.get("url"),
+                            actions=step_data.get("actions"),
+                            evaluation=step_data.get("evaluation"),
+                            memory=step_data.get("memory"),
+                            next_goal=step_data.get("next_goal"),
+                            screenshot_data=step_data.get("screenshot_data"),
+                            event_timestamp=beijing_now() if step_data.get("timestamp") else None,
+                            step_metadata={
+                                "timestamp": step_data.get("timestamp"),
+                                "duration": step_data.get("duration_seconds")
+                            }
                         )
                         db.add(step)
                     
@@ -540,7 +553,19 @@ class TestExecutor:
                             screenshot_path=step_data.get("screenshot_path"),
                             duration_seconds=step_data.get("duration_seconds"),
                             started_at=beijing_now(),
-                            completed_at=beijing_now()
+                            completed_at=beijing_now(),
+                            # 新增字段
+                            url=step_data.get("url"),
+                            actions=step_data.get("actions"),
+                            evaluation=step_data.get("evaluation"),
+                            memory=step_data.get("memory"),
+                            next_goal=step_data.get("next_goal"),
+                            screenshot_data=step_data.get("screenshot_data"),
+                            event_timestamp=beijing_now() if step_data.get("timestamp") else None,
+                            step_metadata={
+                                "timestamp": step_data.get("timestamp"),
+                                "duration": step_data.get("duration_seconds")
+                            }
                         )
                         db.add(step)
                     
@@ -597,7 +622,19 @@ class TestExecutor:
                     screenshot_path=step_data.get("screenshot_path"),
                     duration_seconds=step_data.get("duration_seconds"),
                     started_at=beijing_now(),
-                    completed_at=beijing_now()
+                    completed_at=beijing_now(),
+                    # 新增字段
+                    url=step_data.get("url"),
+                    actions=step_data.get("actions"),
+                    evaluation=step_data.get("evaluation"),
+                    memory=step_data.get("memory"),
+                    next_goal=step_data.get("next_goal"),
+                    screenshot_data=step_data.get("screenshot_data"),
+                    event_timestamp=beijing_now() if step_data.get("timestamp") else None,
+                    step_metadata={
+                        "timestamp": step_data.get("timestamp"),
+                        "duration": step_data.get("duration_seconds")
+                    }
                 )
                 db.add(step)
             
@@ -692,11 +729,6 @@ class TestExecutor:
                     '--disable-features=VizDisplayCompositor',
                     '--disable-web-security',
                     '--disable-features=VizDisplayCompositor',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection'
                 ]
             )
             
@@ -722,6 +754,9 @@ class TestExecutor:
                 
                 llm = self.multi_llm_service._create_llm_instance(request_config)
                 
+                # 创建事件收集器
+                event_collector = event_manager.create_collector(test_case.id, execution.id)
+                
                 agent = Agent(
                     task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
                     llm=llm,
@@ -731,6 +766,11 @@ class TestExecutor:
                     extend_system_message=final_prompt,
                     browser_profile=browser_profile,
                 )
+                
+                # 注册事件监听器
+                agent.eventbus.on('CreateAgentStepEvent', event_collector.collect_step_event)
+                agent.eventbus.on('UpdateAgentTaskEvent', event_collector.collect_task_completion)
+                agent.eventbus.on('ErrorEvent', event_collector.collect_error_event)
                 
                 self.logger.info(f"开始执行任务: {test_case.task_content[:100]}...")
                 
@@ -762,44 +802,46 @@ class TestExecutor:
                 end_time = beijing_now()
                 total_duration = (end_time - start_time).total_seconds()
                 
-                # 解析测试结果
-                if history.final_result():
-                    try:
-                        test_result = TestResult.model_validate_json(history.final_result())
-                        
-                        # 保存截图
-                        screenshots = self._save_screenshots(history, execution.id)
-                        
-                        return {
-                            "success": test_result.overall_status == "PASSED",
-                            "overall_status": test_result.overall_status,
-                            "total_duration": total_duration,
-                            "summary": test_result.summary,
-                            "recommendations": test_result.recommendations,
-                            "test_steps": [step.dict() for step in test_result.test_steps],
-                            "screenshots": screenshots,
-                            "browser_logs": history.action_names(),
-                            "history": history,
-                            "agent": agent
-                        }
-                    except Exception as e:
-                        self.logger.error(f"解析测试结果失败: {e}")
-                        return {
-                            "success": False,
-                            "error_message": f"解析测试结果失败: {e}",
-                            "total_duration": total_duration,
-                            "summary": "测试执行完成但结果解析失败",
-                            "test_steps": []
-                        }
-                else:
-                    return {
-                        "success": False,
-                        "error_message": "没有获得测试结果",
+                # 使用事件收集器生成测试结果
+                test_result_data = event_collector.convert_to_test_result()
+                
+                # 保存截图
+                screenshots = self._save_screenshots(history, execution.id)
+                
+                # 保存 history 到缓存（如果执行成功且有 agent）
+                history_path = ""
+                if test_result_data.get("success") and agent:
+                    history_path = self._save_history_to_cache(test_case.id, agent, SessionLocal())
+                
+                # 广播执行完成消息
+                await websocket_manager.broadcast_execution_update(
+                    execution.id,
+                    {
+                        "type": "execution_completed",
+                        "execution_id": execution.id,
+                        "test_case_id": test_case.id,
+                        "status": "completed",
+                        "success": test_result_data["success"],
+                        "overall_status": test_result_data["overall_status"],
                         "total_duration": total_duration,
-                        "summary": "测试执行完成但没有返回结果",
-                        "test_steps": []
+                        "summary": test_result_data["summary"]
                     }
-                    
+                )
+                
+                return {
+                    "success": test_result_data["success"],
+                    "overall_status": test_result_data["overall_status"],
+                    "total_duration": total_duration,
+                    "summary": test_result_data["summary"],
+                    "recommendations": test_result_data["recommendations"],
+                    "test_steps": test_result_data["test_steps"],
+                    "screenshots": screenshots,
+                    "browser_logs": history.action_names() if hasattr(history, 'action_names') else [],
+                    "history": history,
+                    "agent": agent,
+                    "history_path": history_path
+                }
+                
             finally:
                 # 确保浏览器被关闭
                 try:
@@ -1159,13 +1201,16 @@ class TestExecutor:
                         return None
                         
                 finally:
-                    await browser.close()
-                    self.logger.info("浏览器实例已关闭")
-                    
+                    # 确保浏览器被关闭
+                    try:
+                        await browser.close()
+                    except Exception as e:
+                        self.logger.warning(f"关闭浏览器时出错: {e}")
+                        
         except Exception as e:
-            self.logger.error(f"尝试回放时发生异常: {e}")
+            self.logger.error(f"从 history 回放测试用例 {test_case.id} 失败: {e}")
             import traceback
-            self.logger.error(f"回放异常详细错误: {traceback.format_exc()}")
+            self.logger.error(f"回放失败详细错误: {traceback.format_exc()}")
             return None
         finally:
             self.logger.info(f"=== 测试用例 {test_case.id} 的 history 回放尝试完成 ===")

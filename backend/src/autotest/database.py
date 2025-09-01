@@ -147,13 +147,23 @@ class TestStep(Base):
     execution_id = Column(Integer, ForeignKey("test_execution.id"), nullable=False, comment="执行记录ID")
     step_name = Column(String(255), nullable=False, comment="步骤名称")
     step_order = Column(Integer, comment="步骤顺序")
-    status = Column(String(50), comment="步骤状态: PASSED, FAILED, SKIPPED")
+    status = Column(String(50), comment="步骤状态: PASSED, FAILED, SKIPPED, RUNNING")
     description = Column(Text, comment="步骤描述")
     error_message = Column(Text, comment="错误信息")
     screenshot_path = Column(String(500), comment="截图路径")
     duration_seconds = Column(Float, comment="执行时间(秒)")
     started_at = Column(DateTime, default=beijing_now, comment="开始时间")
     completed_at = Column(DateTime, comment="完成时间")
+    
+    # 新增字段：Browser-Use事件详细信息
+    url = Column(String(2000), comment="步骤执行时的页面URL")
+    actions = Column(JSON, comment="执行的动作列表")
+    evaluation = Column(Text, comment="前一目标的评估结果")
+    memory = Column(Text, comment="Agent记忆信息")
+    next_goal = Column(Text, comment="下一个目标")
+    screenshot_data = Column(Text, comment="截图数据或路径")
+    event_timestamp = Column(DateTime, comment="事件发生时间")
+    step_metadata = Column(JSON, comment="步骤元数据")
     
     # 关联关系
     execution = relationship("TestExecution", back_populates="steps")

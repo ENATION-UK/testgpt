@@ -116,6 +116,16 @@ class TestStepResponse(BaseModel):
     duration_seconds: Optional[float] = None
     started_at: datetime
     completed_at: Optional[datetime] = None
+    
+    # 新增字段：Browser-Use事件详细信息
+    url: Optional[str] = None
+    actions: Optional[List[Dict[str, Any]]] = None
+    evaluation: Optional[str] = None
+    memory: Optional[str] = None
+    next_goal: Optional[str] = None
+    screenshot_data: Optional[str] = None
+    event_timestamp: Optional[datetime] = None
+    step_metadata: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
