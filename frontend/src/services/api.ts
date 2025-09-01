@@ -54,11 +54,33 @@ api.interceptors.response.use(
   }
 )
 
+// 定义分页响应类型
+export interface PaginatedResponse<T> {
+  test_cases: T[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+// 批量执行任务中的测试用例类型定义（提前定义）
+export interface BatchExecutionTestCase {
+  id: number;
+  batch_execution_id: number;
+  test_case_id: number;
+  execution_id?: number;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  overall_status?: 'PASSED' | 'FAILED' | 'PARTIAL';
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  test_case_name: string;
+}
+
 // 测试用例相关API
 export const testCaseApi = {
-  // 获取测试用例列表
+  // 获取测试用例列表（支持分页）
   getList: (params?: { skip?: number; limit?: number; status?: string; category?: string; category_id?: number; priority?: string }) => 
-    api.get<TestCase[]>('/test-cases/', { params }) as unknown as Promise<TestCase[]>,
+    api.get<PaginatedResponse<TestCase>>('/test-cases/', { params }) as unknown as Promise<PaginatedResponse<TestCase>>,
   
   // 获取单个测试用例
   getById: (id: number) => api.get<TestCase>(`/test-cases/${id}/`) as unknown as Promise<TestCase>,

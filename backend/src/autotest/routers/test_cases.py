@@ -4,7 +4,9 @@
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from typing import List, Optional
+
 import pandas as pd
 import io
 import json
@@ -15,7 +17,16 @@ from ..services.excel_service import ExcelService
 
 router = APIRouter(prefix="/test-cases", tags=["测试用例管理"])
 
-@router.get("/", response_model=List[TestCaseResponse])
+
+class TestCasesResponse(BaseModel):
+    """测试用例列表响应模型"""
+    test_cases: List[TestCaseResponse]
+    total: int
+    skip: int
+    limit: int
+
+
+@router.get("/", response_model=TestCasesResponse)
 async def get_test_cases(
     skip: int = 0,
     limit: int = 100,
@@ -25,7 +36,7 @@ async def get_test_cases(
     priority: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """获取测试用例列表"""
+    """获取测试用例列表（支持分页）"""
     query = db.query(TestCase).filter(TestCase.is_deleted == False)
     
     if status:
@@ -41,12 +52,23 @@ async def get_test_cases(
             query = query.filter(TestCase.id.in_(test_case_ids))
         else:
             # 如果没有找到任何测试用例，返回空列表
-            return []
+            return TestCasesResponse(test_cases=[], total=0, skip=skip, limit=limit)
     if priority:
         query = query.filter(TestCase.priority == priority)
     
+    # 获取总数
+    total = query.count()
+    
+    # 应用分页
     test_cases = query.offset(skip).limit(limit).all()
-    return test_cases
+    
+    return TestCasesResponse(
+        test_cases=test_cases,
+        total=total,
+        skip=skip,
+        limit=limit
+    )
+
 
 @router.get("/{test_case_id}", response_model=TestCaseResponse)
 async def get_test_case(test_case_id: int, db: Session = Depends(get_db)):
@@ -59,6 +81,7 @@ async def get_test_case(test_case_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="测试用例不存在")
     return test_case
 
+
 @router.post("/", response_model=TestCaseResponse)
 async def create_test_case(test_case: TestCaseCreate, db: Session = Depends(get_db)):
     """创建新测试用例"""
@@ -67,6 +90,7 @@ async def create_test_case(test_case: TestCaseCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(db_test_case)
     return db_test_case
+
 
 @router.put("/{test_case_id}", response_model=TestCaseResponse)
 async def update_test_case(
@@ -90,6 +114,7 @@ async def update_test_case(
     db.refresh(db_test_case)
     return db_test_case
 
+
 @router.delete("/{test_case_id}")
 async def delete_test_case(test_case_id: int, db: Session = Depends(get_db)):
     """删除测试用例（软删除）"""
@@ -103,6 +128,7 @@ async def delete_test_case(test_case_id: int, db: Session = Depends(get_db)):
     db_test_case.is_deleted = True
     db.commit()
     return {"message": f"测试用例 {db_test_case.name} 已删除"}
+
 
 @router.delete("/batch/delete")
 async def batch_delete_test_cases(
@@ -137,6 +163,7 @@ async def batch_delete_test_cases(
         "deleted_names": deleted_names
     }
 
+
 @router.get("/status/{status}")
 async def get_test_cases_by_status(status: str, db: Session = Depends(get_db)):
     """根据状态获取测试用例"""
@@ -145,6 +172,7 @@ async def get_test_cases_by_status(status: str, db: Session = Depends(get_db)):
         TestCase.is_deleted == False
     ).all()
     return test_cases
+
 
 @router.get("/category/{category}")
 async def get_test_cases_by_category(category: str, db: Session = Depends(get_db)):
@@ -155,10 +183,12 @@ async def get_test_cases_by_category(category: str, db: Session = Depends(get_db
     ).all()
     return test_cases
 
+
 @router.post("/preview-excel")
 async def preview_excel_file(file: UploadFile = File(...)):
     """预览Excel文件内容"""
     return await ExcelService.preview_excel(file)
+
 
 @router.post("/import-excel")
 async def import_excel_file(

@@ -17,6 +17,7 @@ export interface TestCase {
 export interface Category {
   id: number
   name: string
+  description?: string
   parent_id?: number
   level: number
   sort_order: number
@@ -29,12 +30,14 @@ export interface Category {
 
 export interface CategoryCreate {
   name: string
+  description?: string
   parent_id?: number
   sort_order?: number
 }
 
 export interface CategoryUpdate {
   name?: string
+  description?: string
   parent_id?: number
   sort_order?: number
   is_active?: boolean
