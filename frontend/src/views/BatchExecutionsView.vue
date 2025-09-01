@@ -267,19 +267,11 @@ const handleCurrentChange = (newPage: number) => {
   loadBatchExecutions()
 }
 
-const viewBatchExecution = async (batchExecution: BatchExecution) => {
-  try {
-    const data = await batchExecutionApi.getById(batchExecution.id)
-    selectedBatchExecution.value = data
-    showDetailDialog.value = true
-    
-    // 如果任务仍在运行，订阅 WebSocket 更新
-    if (data.status === 'running') {
-      websocketService.subscribeToBatch(data.id)
-    }
-  } catch (error) {
-    ElMessage.error('加载批量执行任务详情失败')
-  }
+const viewBatchExecution = (batchExecution: BatchExecution) => {
+  router.push({
+    name: 'batch-execution-detail',
+    params: { id: batchExecution.id.toString() }
+  })
 }
 
 const viewTestCaseExecution = (executionId: number) => {

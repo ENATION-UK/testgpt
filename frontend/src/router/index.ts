@@ -55,6 +55,11 @@ const router = createRouter({
       component: () => import('../views/BatchExecutionsView.vue')
     },
     {
+      path: '/batch-executions/:id',
+      name: 'batch-execution-detail',
+      component: () => import('../views/BatchExecutionDetailView.vue')
+    },
+    {
       path: '/categories',
       name: 'categories',
       component: () => import('../views/CategoriesView.vue')

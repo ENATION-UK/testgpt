@@ -128,6 +128,10 @@ export const batchExecutionApi = {
   // 获取特定批量执行任务的详细信息
   getById: (id: number) => api.get<BatchExecution>(`/test-executions/batch-executions/${id}/`) as unknown as Promise<BatchExecution>,
   
+  // 获取特定批量执行任务的测试用例详情（支持分页和搜索）
+  getTestCases: (id: number, params?: { skip?: number; limit?: number; search?: string }) => 
+    api.get(`/test-executions/batch-executions/${id}/test-cases/`, { params }) as unknown as Promise<{ test_cases: BatchExecutionTestCase[]; total: number; skip: number; limit: number }>,
+  
   // 启动批量执行任务
   start: (id: number) => 
     api.post<{ success: boolean; message: string }>(`/test-executions/batch-executions/${id}/start/`) as unknown as Promise<{ success: boolean; message: string }>,

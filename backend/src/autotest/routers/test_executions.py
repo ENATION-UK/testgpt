@@ -190,3 +190,70 @@ async def get_test_case_executions(
         TestExecution.test_case_id == test_case_id
     ).order_by(TestExecution.created_at.desc()).offset(skip).limit(limit).all()
     return executions
+
+
+@router.get("/batch-executions/{batch_execution_id}/test-cases", response_model=dict)
+async def get_batch_execution_test_cases(
+    batch_execution_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """获取批量执行任务中的测试用例详情（支持分页和搜索）"""
+    batch_execution = db.query(BatchExecution).filter(BatchExecution.id == batch_execution_id).first()
+    if not batch_execution:
+        raise HTTPException(status_code=404, detail="批量执行任务不存在")
+    
+    # 构建查询
+    query = db.query(BatchExecutionTestCase).filter(
+        BatchExecutionTestCase.batch_execution_id == batch_execution_id
+    )
+    
+    # 如果有搜索关键词，添加搜索条件
+    if search:
+        # 获取测试用例名称匹配的测试用例ID
+        test_case_ids = db.query(TestCase.id).filter(
+            TestCase.name.contains(search)
+        ).all()
+        test_case_ids = [tc[0] for tc in test_case_ids]
+        
+        # 添加测试用例ID过滤条件
+        query = query.filter(BatchExecutionTestCase.test_case_id.in_(test_case_ids))
+    
+    # 获取总数
+    total = query.count()
+    
+    # 应用分页
+    batch_test_cases = query.offset(skip).limit(limit).all()
+    
+    # 获取测试用例信息
+    test_cases_info = []
+    for btc in batch_test_cases:
+        test_case = db.query(TestCase).filter(TestCase.id == btc.test_case_id).first()
+        
+        # 获取执行记录的详细信息（包括整体状态等）
+        overall_status = None
+        if btc.execution_id:
+            execution = db.query(TestExecution).filter(TestExecution.id == btc.execution_id).first()
+            overall_status = execution.overall_status if execution else None
+        
+        test_case_info = {
+            "id": btc.id,
+            "batch_execution_id": btc.batch_execution_id,
+            "test_case_id": btc.test_case_id,
+            "execution_id": btc.execution_id,
+            "status": btc.status,
+            "overall_status": overall_status,
+            "started_at": btc.started_at.isoformat() if btc.started_at else None,
+            "completed_at": btc.completed_at.isoformat() if btc.completed_at else None,
+            "test_case_name": test_case.name if test_case else "未知测试用例"
+        }
+        test_cases_info.append(test_case_info)
+    
+    return {
+        "test_cases": test_cases_info,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
