@@ -311,6 +311,19 @@ class TestStepResult(BaseModel):
     screenshot_path: Optional[str] = Field(default=None, description="相关截图路径")
     duration_seconds: Optional[float] = Field(default=None, description="执行时间")
 
+# 为Controller创建的简化TestResult模型，不包含test_steps
+class ControllerTestResult(BaseModel):
+    """用于Controller的简化测试结果模型"""
+    test_name: str = Field(description="测试名称")
+    overall_status: str = Field(description="整体测试状态: PASSED, FAILED, PARTIAL")
+    total_steps: int = Field(description="总步骤数")
+    passed_steps: int = Field(description="通过的步骤数")
+    failed_steps: int = Field(description="失败的步骤数")
+    skipped_steps: int = Field(description="跳过的步骤数")
+    total_duration: float = Field(description="总执行时间(秒)")
+    summary: str = Field(description="测试总结")
+    recommendations: Optional[str] = Field(default=None, description="改进建议")
+
 class TestResult(BaseModel):
     """完整的测试结果"""
     test_name: str = Field(description="测试名称")
@@ -320,7 +333,8 @@ class TestResult(BaseModel):
     failed_steps: int = Field(description="失败的步骤数")
     skipped_steps: int = Field(description="跳过的步骤数")
     total_duration: float = Field(description="总执行时间(秒)")
-    test_steps: List[TestStepResult] = Field(description="详细的测试步骤")
+    # 移除test_steps字段，因为我们现在使用事件机制收集步骤
+    # test_steps: List[TestStepResult] = Field(description="详细的测试步骤")
     summary: str = Field(description="测试总结")
     recommendations: Optional[str] = Field(default=None, description="改进建议")
 
@@ -371,7 +385,7 @@ class TestExecutor:
         self.multi_llm_service = MultiLLMService()
         
         # 初始化测试控制器
-        self.test_controller = Controller(output_model=TestResult)
+        self.test_controller = Controller(output_model=ControllerTestResult)
         
         # 设置日志
         self.logger = logging.getLogger(__name__)
@@ -447,6 +461,7 @@ class TestExecutor:
                     execution.completed_at = beijing_now()
                     
                     # 更新统计信息
+                    # 使用事件收集器的数据而不是test_steps
                     execution.total_steps = len(result.get("test_steps", []))
                     execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
                     execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
@@ -459,32 +474,7 @@ class TestExecutor:
                     db.commit()
                     
                     # 保存测试步骤
-                    for i, step_data in enumerate(result.get("test_steps", [])):
-                        step = TestStep(
-                            execution_id=execution.id,
-                            step_name=step_data["step_name"],
-                            step_order=i + 1,
-                            status=step_data["status"],
-                            description=step_data["description"],
-                            error_message=step_data.get("error_message"),
-                            screenshot_path=step_data.get("screenshot_path"),
-                            duration_seconds=step_data.get("duration_seconds"),
-                            started_at=beijing_now(),
-                            completed_at=beijing_now(),
-                            # 新增字段
-                            url=step_data.get("url"),
-                            actions=step_data.get("actions"),
-                            evaluation=step_data.get("evaluation"),
-                            memory=step_data.get("memory"),
-                            next_goal=step_data.get("next_goal"),
-                            screenshot_data=step_data.get("screenshot_data"),
-                            event_timestamp=beijing_now() if step_data.get("timestamp") else None,
-                            step_metadata={
-                                "timestamp": step_data.get("timestamp"),
-                                "duration": step_data.get("duration_seconds")
-                            }
-                        )
-                        db.add(step)
+                    # 移除对test_steps的依赖，因为我们现在使用事件机制收集步骤
                     
                     db.commit()
                     
@@ -496,7 +486,8 @@ class TestExecutor:
                         "summary": result.get("summary", ""),
                         "recommendations": result.get("recommendations", ""),
                         "error_message": result.get("error_message", ""),
-                        "test_steps": result.get("test_steps", []),
+                        # 移除test_steps，因为我们现在使用事件机制收集步骤
+                        # "test_steps": result.get("test_steps", []),
                         "from_history": True
                     }
                 
@@ -530,6 +521,7 @@ class TestExecutor:
                     execution.completed_at = beijing_now()
                     
                     # 更新统计信息
+                    # 使用事件收集器的数据而不是test_steps
                     execution.total_steps = len(result.get("test_steps", []))
                     execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
                     execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
@@ -542,32 +534,7 @@ class TestExecutor:
                     db.commit()
                     
                     # 保存测试步骤
-                    for i, step_data in enumerate(result.get("test_steps", [])):
-                        step = TestStep(
-                            execution_id=execution.id,
-                            step_name=step_data["step_name"],
-                            step_order=i + 1,
-                            status=step_data["status"],
-                            description=step_data["description"],
-                            error_message=step_data.get("error_message"),
-                            screenshot_path=step_data.get("screenshot_path"),
-                            duration_seconds=step_data.get("duration_seconds"),
-                            started_at=beijing_now(),
-                            completed_at=beijing_now(),
-                            # 新增字段
-                            url=step_data.get("url"),
-                            actions=step_data.get("actions"),
-                            evaluation=step_data.get("evaluation"),
-                            memory=step_data.get("memory"),
-                            next_goal=step_data.get("next_goal"),
-                            screenshot_data=step_data.get("screenshot_data"),
-                            event_timestamp=beijing_now() if step_data.get("timestamp") else None,
-                            step_metadata={
-                                "timestamp": step_data.get("timestamp"),
-                                "duration": step_data.get("duration_seconds")
-                            }
-                        )
-                        db.add(step)
+                    # 移除对test_steps的依赖，因为我们现在使用事件机制收集步骤
                     
                     db.commit()
                     
@@ -579,7 +546,8 @@ class TestExecutor:
                         "summary": result.get("summary", ""),
                         "recommendations": result.get("recommendations", ""),
                         "error_message": result.get("error_message", ""),
-                        "test_steps": result.get("test_steps", []),
+                        # 移除test_steps，因为我们现在使用事件机制收集步骤
+                        # "test_steps": result.get("test_steps", []),
                         "from_history": True
                     }
                 
@@ -599,10 +567,20 @@ class TestExecutor:
             execution.completed_at = beijing_now()
             
             # 更新统计信息
-            execution.total_steps = len(result.get("test_steps", []))
-            execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
-            execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
-            execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
+            # 使用事件收集器的数据而不是test_steps
+            # 注意：这个event_collector只在_run_browser_test方法中可用
+            # 在缓存回放的情况下，我们需要从result中获取统计信息
+            if "total_steps" in result:
+                execution.total_steps = result.get("total_steps", 0)
+                execution.passed_steps = result.get("passed_steps", 0)
+                execution.failed_steps = result.get("failed_steps", 0)
+                execution.skipped_steps = result.get("skipped_steps", 0)
+            else:
+                # 默认值
+                execution.total_steps = 0
+                execution.passed_steps = 0
+                execution.failed_steps = 0
+                execution.skipped_steps = 0
             
             # 保存浏览器日志和截图
             execution.browser_logs = result.get("browser_logs", [])
@@ -611,32 +589,7 @@ class TestExecutor:
             db.commit()
             
             # 保存测试步骤到数据库
-            for i, step_data in enumerate(result.get("test_steps", [])):
-                step = TestStep(
-                    execution_id=execution.id,
-                    step_name=step_data["step_name"],
-                    step_order=i + 1,
-                    status=step_data["status"],
-                    description=step_data["description"],
-                    error_message=step_data.get("error_message"),
-                    screenshot_path=step_data.get("screenshot_path"),
-                    duration_seconds=step_data.get("duration_seconds"),
-                    started_at=beijing_now(),
-                    completed_at=beijing_now(),
-                    # 新增字段
-                    url=step_data.get("url"),
-                    actions=step_data.get("actions"),
-                    evaluation=step_data.get("evaluation"),
-                    memory=step_data.get("memory"),
-                    next_goal=step_data.get("next_goal"),
-                    screenshot_data=step_data.get("screenshot_data"),
-                    event_timestamp=beijing_now() if step_data.get("timestamp") else None,
-                    step_metadata={
-                        "timestamp": step_data.get("timestamp"),
-                        "duration": step_data.get("duration_seconds")
-                    }
-                )
-                db.add(step)
+            # 移除对test_steps的依赖，因为我们现在使用事件机制收集步骤
             
             db.commit()
             
@@ -653,7 +606,8 @@ class TestExecutor:
                 "summary": result.get("summary", ""),
                 "recommendations": result.get("recommendations", ""),
                 "error_message": result.get("error_message", ""),
-                "test_steps": result.get("test_steps", []),
+                # 移除test_steps，因为我们现在使用事件机制收集步骤
+                # "test_steps": result.get("test_steps", []),
                 "history_path": history_path
             }
             
@@ -787,6 +741,89 @@ class TestExecutor:
                     try:
                         # 等待agent任务完成
                         history = await agent_task
+                        # 添加调试代码：打印agent.run()的结果
+                        self.logger.info(f"=== DEBUG: agent.run() 批量执行结果 ===")
+                        self.logger.info(f"结果内容: {history}")
+
+                        
+                        # 新增代码：解析测试结果
+                        test_result = None
+                        test_result_data = {}
+                        
+                        # 获取最终结果
+                        final_result = history.final_result() if hasattr(history, 'final_result') else None
+                        self.logger.info(f"🔍 最终结果: {final_result}")
+                        
+                        if final_result:
+                            try:
+                                # 解析测试结果
+                                test_result = TestResult.model_validate_json(final_result)
+                                self.logger.info("✅ 成功解析测试结果:")
+                                self.logger.info(f"  测试名称: {test_result.test_name}")
+                                self.logger.info(f"  整体状态: {test_result.overall_status}")
+                                self.logger.info(f"  总步骤数: {test_result.total_steps}")
+                                self.logger.info(f"  通过步骤: {test_result.passed_steps}")
+                                self.logger.info(f"  失败步骤: {test_result.failed_steps}")
+                                self.logger.info(f"  跳过步骤: {test_result.skipped_steps}")
+                                self.logger.info(f"  总执行时间: {test_result.total_duration}秒")
+                                self.logger.info(f"  测试总结: {test_result.summary}")
+                                self.logger.info(f"  改进建议: {test_result.recommendations}")
+                                
+                                # 根据解析后的test_result对象判断测试结果
+                                test_result_data = {
+                                    "success": test_result.overall_status == "PASSED",
+                                    "overall_status": test_result.overall_status,
+                                    "total_steps": test_result.total_steps,
+                                    "passed_steps": test_result.passed_steps,
+                                    "failed_steps": test_result.failed_steps,
+                                    "skipped_steps": test_result.skipped_steps,
+                                    "total_duration": test_result.total_duration,
+                                    "summary": test_result.summary,
+                                    "recommendations": test_result.recommendations
+                                }
+                                
+                            except Exception as e:
+                                self.logger.error(f"❌ 解析测试结果失败: {e}")
+                                self.logger.info("📋 原始结果:")
+                                self.logger.info(final_result)
+                                # 使用默认的测试结果数据
+                                test_result_data = {
+                                    "success": False,
+                                    "overall_status": "FAILED",
+                                    "total_steps": 0,
+                                    "passed_steps": 0,
+                                    "failed_steps": 0,
+                                    "skipped_steps": 0,
+                                    "total_duration": 0,
+                                    "summary": f"解析测试结果失败: {str(e)}",
+                                    "recommendations": None
+                                }
+                        else:
+                            self.logger.warning("❌ 没有获得测试结果")
+                            # 检查是否有详细的分析信息可以输出
+                            if hasattr(history, 'action_names'):
+                                self.logger.info("📋 执行的动作:")
+                                for action in history.action_names():
+                                    self.logger.info(f"  - {action}")
+                            
+                            if hasattr(history, 'errors') and history.errors():
+                                self.logger.info("🚨 执行错误:")
+                                for error in history.errors():
+                                    if error:
+                                        self.logger.info(f"  - {error}")
+                            
+                            # 使用默认的测试结果数据
+                            test_result_data = {
+                                "success": False,
+                                "overall_status": "FAILED",
+                                "total_steps": 0,
+                                "passed_steps": 0,
+                                "failed_steps": 0,
+                                "skipped_steps": 0,
+                                "total_duration": 0,
+                                "summary": "没有获得测试结果",
+                                "recommendations": None
+                            }
                     except asyncio.CancelledError:
                         self.logger.info(f"测试用例 {test_case.id} 被取消")
                         # 重新抛出取消异常，让上层知道任务被取消
@@ -798,12 +835,111 @@ class TestExecutor:
                 else:
                     # 单个测试执行，直接运行
                     history = await agent.run()
+                    # 添加调试代码：打印agent.run()的结果
+
+                    self.logger.info(f"结果内容: {history}")
+
+                    # 新增代码：解析测试结果
+                    test_result = None
+                    test_result_data = {}
+                    
+                    # 获取最终结果
+                    final_result = history.final_result() if hasattr(history, 'final_result') else None
+                    self.logger.info(f"🔍 最终结果: {final_result}")
+                    
+                    if final_result:
+                        try:
+                            # 解析测试结果
+                            test_result = TestResult.model_validate_json(final_result)
+                            self.logger.info("✅ 成功解析测试结果:")
+                            self.logger.info(f"  测试名称: {test_result.test_name}")
+                            self.logger.info(f"  整体状态: {test_result.overall_status}")
+                            self.logger.info(f"  总步骤数: {test_result.total_steps}")
+                            self.logger.info(f"  通过步骤: {test_result.passed_steps}")
+                            self.logger.info(f"  失败步骤: {test_result.failed_steps}")
+                            self.logger.info(f"  跳过步骤: {test_result.skipped_steps}")
+                            self.logger.info(f"  总执行时间: {test_result.total_duration}秒")
+                            self.logger.info(f"  测试总结: {test_result.summary}")
+                            self.logger.info(f"  改进建议: {test_result.recommendations}")
+                            
+                            # 根据解析后的test_result对象判断测试结果
+                            test_result_data = {
+                                "success": test_result.overall_status == "PASSED",
+                                "overall_status": test_result.overall_status,
+                                "total_steps": test_result.total_steps,
+                                "passed_steps": test_result.passed_steps,
+                                "failed_steps": test_result.failed_steps,
+                                "skipped_steps": test_result.skipped_steps,
+                                "total_duration": test_result.total_duration,
+                                "summary": test_result.summary,
+                                "recommendations": test_result.recommendations
+                            }
+                            
+                        except Exception as e:
+                            self.logger.error(f"❌ 解析测试结果失败: {e}")
+                            self.logger.info("📋 原始结果:")
+                            self.logger.info(final_result)
+                            # 使用默认的测试结果数据
+                            test_result_data = {
+                                "success": False,
+                                "overall_status": "FAILED",
+                                "total_steps": 0,
+                                "passed_steps": 0,
+                                "failed_steps": 0,
+                                "skipped_steps": 0,
+                                "total_duration": 0,
+                                "summary": f"解析测试结果失败: {str(e)}",
+                                "recommendations": None
+                            }
+                    else:
+                        self.logger.warning("❌ 没有获得测试结果")
+                        # 检查是否有详细的分析信息可以输出
+                        if hasattr(history, 'action_names'):
+                            self.logger.info("📋 执行的动作:")
+                            for action in history.action_names():
+                                self.logger.info(f"  - {action}")
+                        
+                        if hasattr(history, 'errors') and history.errors():
+                            self.logger.info("🚨 执行错误:")
+                            for error in history.errors():
+                                if error:
+                                    self.logger.info(f"  - {error}")
+                        
+                        # 使用默认的测试结果数据
+                        test_result_data = {
+                            "success": False,
+                            "overall_status": "FAILED",
+                            "total_steps": 0,
+                            "passed_steps": 0,
+                            "failed_steps": 0,
+                            "skipped_steps": 0,
+                            "total_duration": 0,
+                            "summary": "没有获得测试结果",
+                            "recommendations": None
+                        }
                 
                 end_time = beijing_now()
                 total_duration = (end_time - start_time).total_seconds()
                 
-                # 使用事件收集器生成测试结果
-                test_result_data = event_collector.convert_to_test_result()
+                # 使用事件收集器生成测试结果（如果之前没有成功解析）
+                if not test_result_data.get("success"):
+                    event_collector_result = event_collector.convert_to_test_result()
+                    
+                    # 从agent.run()的结果中获取测试成功状态
+                    # 如果agent成功完成任务，则测试成功
+                    agent_success = False
+                    if hasattr(history, 'is_successful'):
+                        agent_success = history.is_successful()
+                        # is_successful()可能返回None（未完成），所以需要处理这种情况
+                        if agent_success is None:
+                            agent_success = False
+                    
+                    # 如果事件收集器没有获取到成功状态，则使用agent的结果
+                    if "success" not in event_collector_result or not event_collector_result["success"]:
+                        event_collector_result["success"] = agent_success
+                    
+                    # 合并结果数据
+                    test_result_data = {**event_collector_result, **test_result_data}
                 
                 # 保存截图
                 screenshots = self._save_screenshots(history, execution.id)
@@ -834,7 +970,6 @@ class TestExecutor:
                     "total_duration": total_duration,
                     "summary": test_result_data["summary"],
                     "recommendations": test_result_data["recommendations"],
-                    "test_steps": test_result_data["test_steps"],
                     "screenshots": screenshots,
                     "browser_logs": history.action_names() if hasattr(history, 'action_names') else [],
                     "history": history,
@@ -863,6 +998,8 @@ class TestExecutor:
             return ""
         except Exception as e:
             self.logger.warning(f"加载自定义提示词失败: {e}")
+            return ""
+
             return ""
 
     def _save_screenshots(self, history, execution_id: int) -> List[str]:
@@ -939,7 +1076,7 @@ class TestExecutor:
         """获取测试用例的 history 文件路径"""
         return self.history_cache_dir / f"test_case_{test_case_id}_history.json"
     
-    def _get_history_path_from_relative(self, relative_path: str) -> Path:
+    def _get_history_path_from_relative(self, relative_path: str) -> Optional[Path]:
         """根据相对路径获取完整的 history 文件路径"""
         self.logger.info(f"=== 开始解析 history 路径 ===")
         self.logger.info(f"输入的相对路径: {relative_path}")
@@ -1011,21 +1148,25 @@ class TestExecutor:
         # 检查 history 是否过期（比如超过7天）
         if test_case.history_updated_at:
             from datetime import timedelta
-            # 确保时区一致性
-            history_time = ensure_timezone_aware(test_case.history_updated_at)
-            current_time = beijing_now()
-            time_diff = current_time - history_time
-            days_diff = time_diff.days
-            
-            self.logger.info(f"测试用例 {test_case.id} 的 history 更新时间: {history_time}")
-            self.logger.info(f"当前时间: {current_time}")
-            self.logger.info(f"时间差: {time_diff} (共 {days_diff} 天)")
-            
-            if time_diff > timedelta(days=7):
-                self.logger.info(f"测试用例 {test_case.id} 的 history 已过期 ({days_diff} 天 > 7 天)，将重新执行")
+            try:
+                # 确保时区一致性
+                history_time = ensure_timezone_aware(test_case.history_updated_at)
+                current_time = beijing_now()
+                time_diff = current_time - history_time
+                days_diff = time_diff.days
+                
+                self.logger.info(f"测试用例 {test_case.id} 的 history 更新时间: {history_time}")
+                self.logger.info(f"当前时间: {current_time}")
+                self.logger.info(f"时间差: {time_diff} (共 {days_diff} 天)")
+                
+                if time_diff > timedelta(days=7):
+                    self.logger.info(f"测试用例 {test_case.id} 的 history 已过期 ({days_diff} 天 > 7 天)，将重新执行")
+                    return False
+                else:
+                    self.logger.info(f"测试用例 {test_case.id} 的 history 未过期 ({days_diff} 天 <= 7 天)，可以使用缓存")
+            except Exception as e:
+                self.logger.warning(f"测试用例 {test_case.id} 的 history 时间计算出错: {e}")
                 return False
-            else:
-                self.logger.info(f"测试用例 {test_case.id} 的 history 未过期 ({days_diff} 天 <= 7 天)，可以使用缓存")
         else:
             self.logger.warning(f"测试用例 {test_case.id} 的 history_updated_at 为空，将重新执行")
             return False
@@ -1194,10 +1335,6 @@ class TestExecutor:
                         self.logger.warning(f"从 history 回放失败: {e}")
                         import traceback
                         self.logger.warning(f"回放失败详细错误: {traceback.format_exc()}")
-                        return None
-                            
-                    except Exception as e:
-                        self.logger.warning(f"从 history 回放失败: {e}")
                         return None
                         
                 finally:
