@@ -19,7 +19,7 @@ from browser_use.browser.profile import BrowserProfile
 
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from browser_use.controller.service import Controller
+# from browser_use.tools.service import Controller  # 新版本不再需要Controller
 
 load_dotenv()
 
@@ -80,8 +80,8 @@ class TestResult(BaseModel):
     summary: str = Field(description="测试总结")
     recommendations: Optional[str] = Field(default=None, description="改进建议")
 
-# 创建带有测试输出格式的控制器
-test_controller = Controller(output_model=TestResult)
+# 创建带有测试输出格式的控制器（新版本不再需要Controller对象）
+# test_controller = Controller(output_model=TestResult)  # 旧版本用法
 
 llm = ChatDeepSeek(
     base_url='https://api.deepseek.com/v1',
@@ -220,7 +220,7 @@ https://seller-bbc740.javamall.com.cn/
             page=page,  # Pass page directly as shortcut
             use_vision=True,  # Enable vision capabilities for screenshot analysis
             save_conversation_path='/tmp/javashop4',
-            controller=test_controller,
+            output_model_schema=TestResult,
             extend_system_message=TEST_SYSTEM_PROMPT,
             browser_profile=browser_profile,
             llm_timeout=120,    # LLM调用超时时间（秒）

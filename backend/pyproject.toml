@@ -6,7 +6,7 @@ authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
 dependencies = [
-    "browser-use>=0.5.6",
+    "browser-use>=0.7.1",
     "fastapi>=0.104.0",
     "playwright>=1.54.0",
     "pymysql>=1.1.1",

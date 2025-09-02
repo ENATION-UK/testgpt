@@ -28,7 +28,7 @@ def ensure_timezone_aware(dt):
         return dt.replace(tzinfo=BEIJING_TZ)
     return dt
 
-from browser_use.controller.service import Controller
+# from browser_use.tools.service import Controller  # 新版本不再需要Controller
 from browser_use.browser.profile import BrowserProfile
 from .services.multi_llm_service import MultiLLMService
 from playwright.async_api import async_playwright
@@ -384,8 +384,8 @@ class TestExecutor:
         # 初始化多模型服务
         self.multi_llm_service = MultiLLMService()
         
-        # 初始化测试控制器
-        self.test_controller = Controller(output_model=ControllerTestResult)
+        # 初始化测试控制器（新版本使用 output_model_schema）
+        self.test_controller = None  # 不再需要 Controller 对象
         
         # 设置日志
         self.logger = logging.getLogger(__name__)
@@ -708,7 +708,7 @@ class TestExecutor:
                     llm=llm,
                     page=page,
                     use_vision=True,
-                    controller=self.test_controller,
+                    output_model_schema=ControllerTestResult,
                     extend_system_message=final_prompt,
                     browser_profile=browser_profile,
                     llm_timeout=120,    # LLM调用超时时间（秒）
@@ -1220,21 +1220,25 @@ class TestExecutor:
                     
                     # 创建增强的 Agent 并尝试回放
                     self.logger.info("开始创建增强Agent实例...")
-                    from .enhanced_agent import create_enhanced_agent_with_collector
+                    # from .enhanced_agent import create_enhanced_agent_with_collector  # 模块不存在，暂时注释
                     
                     # 创建带事件收集器的增强 Agent
-                    agent = create_enhanced_agent_with_collector(
-                        test_case_id=test_case.id,
-                        execution_id=execution.id,
-                        task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
-                        llm=llm,
-                        page=page,
-                        use_vision=True,
-                        controller=self.test_controller,
-                        extend_system_message=TEST_SYSTEM_PROMPT,
-                        browser_profile=browser_profile,
-                    )
-                    self.logger.info("增强Agent实例创建成功")
+                    # agent = create_enhanced_agent_with_collector(  # 模块不存在，暂时注释
+                    #     test_case_id=test_case.id,
+                    #     execution_id=execution.id,
+                    #     task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
+                    #     llm=llm,
+                    #     page=page,
+                    #     use_vision=True,
+                    #     output_model_schema=ControllerTestResult,
+                    #     extend_system_message=TEST_SYSTEM_PROMPT,
+                    #     browser_profile=browser_profile,
+                    # )
+                    # self.logger.info("增强Agent实例创建成功")
+                    
+                    # 暂时跳过增强Agent功能，直接返回None
+                    self.logger.warning("增强Agent模块不存在，跳过history回放功能")
+                    return None
                     
                     start_time = beijing_now()
                     
