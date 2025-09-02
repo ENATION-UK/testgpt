@@ -29,6 +29,7 @@ async def main():
         base_url='https://api.deepseek.com/v1',
         model='deepseek-chat',
         api_key="",
+        timeout=120.0  # 设置LLM客户端超时时间为120秒
     )
     
     async with async_playwright() as playwright:
@@ -59,6 +60,8 @@ async def main():
             page=page,
             use_vision=False,  # 禁用视觉功能以提高性能
             save_conversation_path='/tmp/browser_example.log',
+            llm_timeout=120,    # LLM调用超时时间（秒）
+            step_timeout=300    # 每个步骤的超时时间（秒）
         )
         
         print("🚀 开始执行浏览器任务...")

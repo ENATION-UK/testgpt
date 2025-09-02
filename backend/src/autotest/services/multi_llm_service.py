@@ -181,13 +181,24 @@ class MultiLLMService:
                 model=request_config.model,
                 api_key=request_config.api_key,
                 temperature=request_config.temperature,
-                max_tokens=request_config.max_tokens
+                max_tokens=request_config.max_tokens,
+                timeout=120.0  # 设置LLM客户端超时时间为120秒
             )
         elif request_config.model_type == "openai":
             return ChatOpenAI(
                 model=request_config.model,
                 api_key=request_config.api_key,
-                temperature=request_config.temperature
+                temperature=request_config.temperature,
+                timeout=120.0  # 设置LLM客户端超时时间为120秒
+            )
+        elif request_config.model_type == "doubao":
+            # 豆包模型使用OpenAI兼容的API接口
+            return ChatOpenAI(
+                model=request_config.model,
+                api_key=request_config.api_key,
+                temperature=request_config.temperature,
+                base_url=request_config.base_url,
+                timeout=120.0  # 设置LLM客户端超时时间为120秒
             )
         else:
             raise ValueError(f"不支持的模型类型: {request_config.model_type}")

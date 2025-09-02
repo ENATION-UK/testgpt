@@ -87,6 +87,7 @@ llm = ChatDeepSeek(
     base_url='https://api.deepseek.com/v1',
     model='deepseek-chat',
     api_key="",
+    timeout=120.0  # 设置LLM客户端超时时间为120秒
 )
 
 def get_status_emoji(status: str) -> str:
@@ -222,7 +223,8 @@ https://seller-bbc740.javamall.com.cn/
             controller=test_controller,
             extend_system_message=TEST_SYSTEM_PROMPT,
             browser_profile=browser_profile,
-
+            llm_timeout=120,    # LLM调用超时时间（秒）
+            step_timeout=300    # 每个步骤的超时时间（秒）
         )
 
         print("🚀 使用Browser Use Agent执行任务...")

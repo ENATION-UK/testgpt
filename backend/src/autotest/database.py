@@ -150,7 +150,7 @@ class TestStep(Base):
     status = Column(String(50), comment="步骤状态: PASSED, FAILED, SKIPPED, RUNNING")
     description = Column(Text, comment="步骤描述")
     error_message = Column(Text, comment="错误信息")
-    screenshot_path = Column(String(500), comment="截图路径")
+    screenshot_path = Column(Text, comment="截图路径")
     duration_seconds = Column(Float, comment="执行时间(秒)")
     started_at = Column(DateTime, default=beijing_now, comment="开始时间")
     completed_at = Column(DateTime, comment="完成时间")

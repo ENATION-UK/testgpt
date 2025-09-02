@@ -40,6 +40,7 @@
           <el-select v-model="form.model_type" placeholder="选择模型类型" style="width: 100%">
             <el-option label="DeepSeek" value="deepseek" />
             <el-option label="OpenAI" value="openai" />
+            <el-option label="豆包" value="doubao" />
           </el-select>
         </el-form-item>
 
@@ -65,7 +66,7 @@
           />
           <div class="form-tip">
             <el-icon><InfoFilled /></el-icon>
-            <span>DeepSeek: https://api.deepseek.com/v1, OpenAI: https://api.openai.com/v1</span>
+            <span>DeepSeek: https://api.deepseek.com/v1, OpenAI: https://api.openai.com/v1, 豆包: https://api.doubao.com</span>
           </div>
         </el-form-item>
 
@@ -77,7 +78,7 @@
           />
           <div class="form-tip">
             <el-icon><InfoFilled /></el-icon>
-            <span>DeepSeek: deepseek-chat, OpenAI: gpt-4o</span>
+            <span>DeepSeek: deepseek-chat, OpenAI: gpt-4o, 豆包: doubao-v1.5</span>
           </div>
         </el-form-item>
 
@@ -284,6 +285,9 @@ const handleModelTypeChange = () => {
   } else if (form.model_type === 'openai') {
     form.base_url = 'https://api.openai.com/v1'
     form.model = 'gpt-4o'
+  } else if (form.model_type === 'doubao') {
+    form.base_url = 'https://api.doubao.com'
+    form.model = 'doubao-v1.5'
   }
 }
 

@@ -154,7 +154,7 @@ class TestStatistics(BaseModel):
 # 模型配置相关模型
 class ModelConfig(BaseModel):
     """模型配置"""
-    model_type: str = Field(description="模型类型: deepseek, openai")
+    model_type: str = Field(description="模型类型: deepseek, openai, doubao")
     api_key: str = Field(description="API密钥")
     base_url: Optional[str] = Field(default=None, description="API基础URL")
     model: str = Field(description="模型名称")
@@ -186,7 +186,7 @@ class ModelProviderConfig(BaseModel):
     """单个模型提供商配置"""
     provider_id: str = Field(description="提供商ID，唯一标识")
     provider_name: str = Field(description="提供商名称")
-    model_type: str = Field(description="模型类型: deepseek, openai")
+    model_type: str = Field(description="模型类型: deepseek, openai, doubao")
     base_url: str = Field(description="API基础URL")
     model: str = Field(description="模型名称")
     temperature: float = Field(default=0.7, description="温度参数")

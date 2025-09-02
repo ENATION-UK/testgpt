@@ -79,9 +79,9 @@
                 <div v-if="step.error_message" class="step-error">
                   <el-alert :title="step.error_message" type="error" show-icon />
                 </div>
-                <div v-if="step.screenshot_path" class="step-screenshot">
+                <div v-if="step.screenshot_data || step.screenshot_path" class="step-screenshot">
                   <h4>截图</h4>
-                  <img :src="getScreenshotUrl(step.screenshot_path)" alt="步骤截图" />
+                  <img :src="getScreenshotUrl(step.screenshot_data || step.screenshot_path)" alt="步骤截图" />
                 </div>
               </div>
             </el-card>
@@ -176,7 +176,12 @@ const formatDate = (dateString: string): string => {
 }
 
 const getScreenshotUrl = (path: string): string => {
-  // 这里需要根据实际的后端配置来构建截图URL
+  // 检查是否是base64数据
+  if (path && path.startsWith('data:image')) {
+    // 直接返回base64数据
+    return path
+  }
+  // 如果是文件路径，构建API URL
   return `/api/screenshots/${path}`
 }
 

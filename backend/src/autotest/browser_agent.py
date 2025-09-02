@@ -82,13 +82,24 @@ class BrowserAgent:
                 model=self.model,
                 api_key=self.api_key,
                 temperature=self.temperature,
-                max_tokens=self.max_tokens
+                max_tokens=self.max_tokens,
+                timeout=120.0  # 设置LLM客户端超时时间为120秒
             )
         elif self.model_type == "openai":
             return ChatOpenAI(
                 model=self.model,
                 api_key=self.api_key,
-                temperature=self.temperature
+                temperature=self.temperature,
+                timeout=120.0  # 设置LLM客户端超时时间为120秒
+            )
+        elif self.model_type == "doubao":
+            # 豆包模型使用OpenAI兼容的API接口
+            return ChatOpenAI(
+                model=self.model,
+                api_key=self.api_key,
+                temperature=self.temperature,
+                base_url=self.base_url,
+                timeout=120.0  # 设置LLM客户端超时时间为120秒
             )
         else:
             raise ValueError(f"不支持的模型类型: {self.model_type}")
@@ -164,6 +175,8 @@ class BrowserAgent:
                     use_vision=use_vision,
                     save_conversation_path=save_conversation_path,
                     browser_profile=browser_profile,
+                    llm_timeout=120,    # LLM调用超时时间（秒）
+                    step_timeout=300    # 每个步骤的超时时间（秒）
                 )
                 
                 # 执行任务

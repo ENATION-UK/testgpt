@@ -81,6 +81,7 @@
                   >
                     <el-option label="DeepSeek" value="deepseek" />
                     <el-option label="OpenAI" value="openai" />
+                    <el-option label="豆包" value="doubao" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -96,7 +97,7 @@
                   />
                   <div class="form-tip">
                     <el-icon><InfoFilled /></el-icon>
-                    <span>DeepSeek: https://api.deepseek.com/v1, OpenAI: https://api.openai.com/v1</span>
+                    <span>DeepSeek: https://api.deepseek.com/v1, OpenAI: https://api.openai.com/v1, 豆包: https://api.doubao.com</span>
                   </div>
                 </el-form-item>
               </el-col>
@@ -110,7 +111,7 @@
                   />
                   <div class="form-tip">
                     <el-icon><InfoFilled /></el-icon>
-                    <span>DeepSeek: deepseek-chat, OpenAI: gpt-4o</span>
+                    <span>DeepSeek: deepseek-chat, OpenAI: gpt-4o, 豆包: doubao-v1.5</span>
                   </div>
                 </el-form-item>
               </el-col>
@@ -334,6 +335,9 @@ const onModelTypeChange = (provider: ModelProvider) => {
   } else if (provider.model_type === 'openai') {
     provider.base_url = 'https://api.openai.com/v1'
     provider.model = 'gpt-4o'
+  } else if (provider.model_type === 'doubao') {
+    provider.base_url = 'https://api.doubao.com'
+    provider.model = 'doubao-v1.5'
   }
 }
 
@@ -341,9 +345,9 @@ const addProvider = () => {
   const newProvider = {
     provider_id: generateProviderId(),
     provider_name: `模型提供商 ${form.providers.length + 1}`,
-    model_type: 'deepseek',
-    base_url: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat',
+    model_type: 'doubao',
+    base_url: 'https://api.doubao.com',
+    model: 'doubao-v1.5',
     temperature: 0.7,
     max_tokens: null,
     api_keys: [''],

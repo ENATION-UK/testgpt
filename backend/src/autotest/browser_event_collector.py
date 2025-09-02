@@ -228,8 +228,8 @@ class BrowserUseEventCollector:
         """从事件中提取截图数据"""
         screenshot_url = getattr(event, 'screenshot_url', None)
         if screenshot_url:
-            # 截取前100个字符作为标识
-            return screenshot_url[:100] + '...' if len(screenshot_url) > 100 else screenshot_url
+            # 直接返回完整的截图数据，不截断
+            return screenshot_url
         return None
     
     async def _save_step_to_database(self, step_data: StepEventData, is_new: bool = True):

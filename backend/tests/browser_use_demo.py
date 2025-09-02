@@ -30,6 +30,7 @@ async def test_login_scenario():
         base_url='https://api.deepseek.com/v1',
         model='deepseek-chat',
         api_key="",
+        timeout=120.0  # 设置LLM客户端超时时间为120秒
     )
     
     async with async_playwright() as playwright:
@@ -68,6 +69,8 @@ async def test_login_scenario():
             page=page,
             use_vision=False,
             save_conversation_path='/tmp/login_test.log',
+            llm_timeout=120,    # LLM调用超时时间（秒）
+            step_timeout=300    # 每个步骤的超时时间（秒）
         )
         
         try:
@@ -132,6 +135,7 @@ async def test_simple_scenario():
         base_url='https://api.deepseek.com/v1',
         model='deepseek-chat',
         api_key="",
+        timeout=120.0  # 设置LLM客户端超时时间为120秒
     )
     
     async with async_playwright() as playwright:
@@ -150,6 +154,8 @@ async def test_simple_scenario():
             page=page,
             use_vision=False,
             save_conversation_path='/tmp/simple_test.log',
+            llm_timeout=120,    # LLM调用超时时间（秒）
+            step_timeout=300    # 每个步骤的超时时间（秒）
         )
         
         try:

@@ -711,6 +711,8 @@ class TestExecutor:
                     controller=self.test_controller,
                     extend_system_message=final_prompt,
                     browser_profile=browser_profile,
+                    llm_timeout=120,    # LLM调用超时时间（秒）
+                    step_timeout=300    # 每个步骤的超时时间（秒）
                 )
                 
                 # 注册事件监听器
