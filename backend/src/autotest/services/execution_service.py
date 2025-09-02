@@ -367,10 +367,11 @@ class ExecutionService:
                     execution.completed_at = beijing_now()
                     
                     # 更新统计信息
-                    execution.total_steps = len(result.get("test_steps", []))
-                    execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
-                    execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
-                    execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
+                    # 使用事件收集器的数据而不是test_steps
+                    # execution.total_steps = len(result.get("test_steps", []))
+                    # execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
+                    # execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
+                    # execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
                     
                     db.commit()
             finally:

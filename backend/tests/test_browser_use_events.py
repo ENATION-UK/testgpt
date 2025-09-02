@@ -80,8 +80,6 @@ async def test_event_collection():
         
         # 验证测试结果转换
         assert "success" in test_result, "测试结果缺少success字段"
-        assert "test_steps" in test_result, "测试结果缺少test_steps字段"
-        assert len(test_result["test_steps"]) == 1, "测试步骤数量不正确"
         logger.info("✓ 测试结果转换功能正常")
         
         # 测试获取步骤摘要

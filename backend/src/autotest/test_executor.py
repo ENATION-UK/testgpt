@@ -462,11 +462,7 @@ class TestExecutor:
                     
                     # 更新统计信息
                     # 使用事件收集器的数据而不是test_steps
-                    execution.total_steps = len(result.get("test_steps", []))
-                    execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
-                    execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
-                    execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
-                    
+
                     # 保存浏览器日志和截图
                     execution.browser_logs = result.get("browser_logs", [])
                     execution.screenshots = result.get("screenshots", [])
@@ -522,11 +518,7 @@ class TestExecutor:
                     
                     # 更新统计信息
                     # 使用事件收集器的数据而不是test_steps
-                    execution.total_steps = len(result.get("test_steps", []))
-                    execution.passed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "PASSED"])
-                    execution.failed_steps = len([s for s in result.get("test_steps", []) if s["status"] == "FAILED"])
-                    execution.skipped_steps = len([s for s in result.get("test_steps", []) if s["status"] == "SKIPPED"])
-                    
+
                     # 保存浏览器日志和截图
                     execution.browser_logs = result.get("browser_logs", [])
                     execution.screenshots = result.get("screenshots", [])
@@ -1308,7 +1300,6 @@ class TestExecutor:
                                                 "total_duration": total_duration,
                                                 "summary": test_result.summary,
                                                 "recommendations": test_result.recommendations,
-                                                "test_steps": [step.dict() for step in test_result.test_steps],
                                                 "screenshots": screenshots,
                                                 "browser_logs": [action.extracted_content for action in history_result if action.extracted_content],
                                                 "from_history": True
