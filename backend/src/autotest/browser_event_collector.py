@@ -88,6 +88,16 @@ class BrowserUseEventCollector:
             
             # 记录步骤开始时间
             step_number = getattr(event, 'step', 0)
+            
+            # 如果是回放模式，使用回放步骤编号
+            if hasattr(event, 'replay_mode') and event.replay_mode:
+                replay_step_number = getattr(event, 'replay_step_number', step_number)
+                if replay_step_number > 0:
+                    step_number = replay_step_number
+                    self.logger.info(f"🔄 回放模式，使用步骤编号: {step_number}")
+                else:
+                    self.logger.warning(f"⚠️ 回放模式但步骤编号为0，使用原始编号: {step_number}")
+            
             if step_number > 0 and step_number not in self.step_start_times:
                 self.step_start_times[step_number] = beijing_now()
             
@@ -112,10 +122,14 @@ class BrowserUseEventCollector:
             # 检查是否已存在相同步骤编号的记录
             existing_step = None
             existing_step_index = -1
+            self.logger.info(f"🔍 检查步骤 {step_data.step_number} 是否已存在，当前总步骤数: {len(self.step_events)}")
+            
             for i, existing in enumerate(self.step_events):
+                self.logger.debug(f"  检查步骤 {i}: 编号={existing.step_number}, 目标={existing.next_goal}")
                 if existing.step_number == step_data.step_number:
                     existing_step = existing
                     existing_step_index = i
+                    self.logger.info(f"✅ 找到已存在的步骤 {step_data.step_number} 在位置 {i}")
                     break
             
             # 如果已存在相同步骤编号，合并信息而不是简单替换
@@ -124,13 +138,14 @@ class BrowserUseEventCollector:
                 merged_step = self._merge_step_data(existing_step, step_data)
                 self.step_events[existing_step_index] = merged_step
                 step_data = merged_step
-                self.logger.info(f"合并更新步骤 {step_number}")
+                self.logger.info(f"🔄 合并更新步骤 {step_number}")
             else:
                 # 存储新步骤数据
                 self.step_events.append(step_data)
-                self.logger.info(f"添加新步骤 {step_number}")
+                self.logger.info(f"➕ 添加新步骤 {step_number}")
             
-            self.logger.info(f"步骤 {step_number} 记录完成: {step_data.url}")
+            self.logger.info(f"📋 步骤 {step_number} 记录完成: {step_data.url}")
+            self.logger.info(f"📊 当前总步骤数: {len(self.step_events)}")
             
             # 实时保存步骤数据到数据库
             await self._save_step_to_database(step_data, not existing_step)
@@ -177,7 +192,13 @@ class BrowserUseEventCollector:
             
             # 异步调用回调函数
             if self.on_task_completion:
-                asyncio.create_task(self.on_task_completion(self.task_completion))
+                try:
+                    if asyncio.iscoroutinefunction(self.on_task_completion):
+                        asyncio.create_task(self.on_task_completion(self.task_completion))
+                    else:
+                        self.on_task_completion(self.task_completion)
+                except Exception as e:
+                    self.logger.error(f"回调函数执行失败: {e}")
                 
         except Exception as e:
             self.logger.error(f"收集任务完成事件失败: {e}")

@@ -1184,7 +1184,7 @@ class TestExecutor:
             async with async_playwright() as p:
                 self.logger.info(f"启动浏览器实例，headless: {headless}")
                 browser = await p.chromium.launch(
-                    headless=headless,
+                    headless=False,
                     args=[
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -1216,10 +1216,14 @@ class TestExecutor:
                     llm = self.multi_llm_service._create_llm_instance(request_config)
                     self.logger.info("LLM实例创建成功")
                     
-                    # 创建 Agent 并尝试回放
-                    self.logger.info("开始创建Agent实例...")
-                    from browser_use import Agent
-                    agent = Agent(
+                    # 创建增强的 Agent 并尝试回放
+                    self.logger.info("开始创建增强Agent实例...")
+                    from .enhanced_agent import create_enhanced_agent_with_collector
+                    
+                    # 创建带事件收集器的增强 Agent
+                    agent = create_enhanced_agent_with_collector(
+                        test_case_id=test_case.id,
+                        execution_id=execution.id,
                         task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
                         llm=llm,
                         page=page,
@@ -1228,7 +1232,7 @@ class TestExecutor:
                         extend_system_message=TEST_SYSTEM_PROMPT,
                         browser_profile=browser_profile,
                     )
-                    self.logger.info("Agent实例创建成功")
+                    self.logger.info("增强Agent实例创建成功")
                     
                     start_time = beijing_now()
                     
@@ -1247,10 +1251,15 @@ class TestExecutor:
                             self.logger.warning(f"History 文件不存在: {full_history_path}")
                             return None
                         
-                        self.logger.info(f"开始调用 agent.load_and_rerun() 进行回放...")
-                        # 使用 agent.load_and_rerun() 方法回放，这是正确的方式
-                        history_result = await agent.load_and_rerun(str(full_history_path))
-                        self.logger.info(f"agent.load_and_rerun() 调用完成，返回结果类型: {type(history_result)}")
+                        self.logger.info(f"开始调用增强的 agent.load_and_rerun_with_events() 进行回放...")
+                        # 使用增强的 agent.load_and_rerun_with_events() 方法回放，支持事件监听
+                        history_result = await agent.load_and_rerun_with_events(
+                            str(full_history_path),
+                            max_retries=3,
+                            skip_failures=True,
+                            delay_between_actions=2.0
+                        )
+                        self.logger.info(f"agent.load_and_rerun_with_events() 调用完成，返回结果类型: {type(history_result)}")
                         
                         if history_result:
                             self.logger.info(f"回放返回结果长度: {len(history_result) if isinstance(history_result, list) else 'N/A'}")
