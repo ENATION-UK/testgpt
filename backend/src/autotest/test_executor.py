@@ -653,10 +653,11 @@ class TestExecutor:
         from playwright.async_api import async_playwright
         import asyncio
         
-        # 创建 BrowserProfile 禁用默认扩展
+        # 创建 BrowserProfile 禁用默认扩展和代理
         browser_profile = BrowserProfile(
             enable_default_extensions=False,
-            headless=headless
+            headless=headless,
+            proxy=None  # 明确禁用代理
         )
         
         async with async_playwright() as p:
@@ -675,6 +676,8 @@ class TestExecutor:
                     '--disable-features=VizDisplayCompositor',
                     '--disable-web-security',
                     '--disable-features=VizDisplayCompositor',
+                    '--no-proxy-server',  # 禁用代理服务器
+                    '--proxy-bypass-list=*',  # 绕过所有代理
                 ]
             )
             
@@ -1177,10 +1180,11 @@ class TestExecutor:
             # 创建浏览器实例
             from playwright.async_api import async_playwright
             
-            # 创建 BrowserProfile 禁用默认扩展
+            # 创建 BrowserProfile 禁用默认扩展和代理
             browser_profile = BrowserProfile(
                 enable_default_extensions=False,
-                headless=headless
+                headless=headless,
+                proxy=None  # 明确禁用代理
             )
             
             async with async_playwright() as p:
@@ -1202,7 +1206,9 @@ class TestExecutor:
                         '--disable-backgrounding-occluded-windows',
                         '--disable-renderer-backgrounding',
                         '--disable-features=TranslateUI',
-                        '--disable-ipc-flooding-protection'
+                        '--disable-ipc-flooding-protection',
+                        '--no-proxy-server',  # 禁用代理服务器
+                        '--proxy-bypass-list=*',  # 绕过所有代理
                     ]
                 )
                 

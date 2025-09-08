@@ -207,11 +207,12 @@ https://seller-bbc740.javamall.com.cn/
         # 使用Browser Use Agent
         from browser_use import Agent
         
-        # 创建 BrowserProfile 禁用默认扩展
-        browser_profile = BrowserProfile(
-            enable_default_extensions=False,
-            headless=False
-        )
+        # 创建 BrowserProfile 禁用默认扩展和代理
+browser_profile = BrowserProfile(
+    enable_default_extensions=False,
+    headless=False,
+    proxy=None  # 明确禁用代理
+)
         
         # Pass the page directly to Agent
         agent = Agent(
