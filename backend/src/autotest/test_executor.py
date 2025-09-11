@@ -650,192 +650,73 @@ class TestExecutor:
     
     async def _run_browser_test(self, test_case: TestCase, execution: TestExecution, headless: bool, batch_execution_id: Optional[int] = None) -> Dict[str, Any]:
         """运行浏览器测试"""
-        from playwright.async_api import async_playwright
         import asyncio
-        
-        # 创建 BrowserProfile 禁用默认扩展和代理
-        browser_profile = BrowserProfile(
-            enable_default_extensions=False,
-            headless=headless,
-            proxy=None  # 明确禁用代理
-        )
-        
-        async with async_playwright() as p:
-            # 启动浏览器
-            browser = await p.chromium.launch(
+        from browser_use import Browser, Agent
+        agent = None
+
+        try:
+            # 使用 browser_use 的 Browser 类
+            browser = Browser(
                 headless=headless,
-                args=[
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--disable-extensions',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--no-proxy-server',  # 禁用代理服务器
-                    '--proxy-bypass-list=*',  # 绕过所有代理
-                ]
+                highlight_elements=False,
+            )
+            # 加载自定义提示词
+            custom_prompt = self._load_custom_prompt()
+            
+            # 合并默认提示词和自定义提示词
+            final_prompt = TEST_SYSTEM_PROMPT
+            if custom_prompt:
+                final_prompt = f"{TEST_SYSTEM_PROMPT}\n\n{custom_prompt}"
+            
+            # 使用Browser Use Agent
+            from browser_use import Agent
+            
+            # 使用多模型服务创建LLM实例
+            config = self.multi_llm_service._load_multi_model_config()
+            request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
+            print(f"使用API key:{request_config.model_type}-- {request_config.api_key}")
+            
+            llm = self.multi_llm_service._create_llm_instance(request_config)
+            
+            # 创建事件收集器
+            event_collector = event_manager.create_collector(test_case.id, execution.id)
+            
+            agent = Agent(
+                task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
+                llm=llm,
+                browser=browser,
+                use_vision=True,
+                output_model_schema=ControllerTestResult,
+                extend_system_message=final_prompt,
+                llm_timeout=120,    # LLM调用超时时间（秒）
+                step_timeout=300    # 每个步骤的超时时间（秒）
             )
             
-            try:
-                # 创建新页面
-                page = await browser.new_page()
+            # 注册事件监听器
+            agent.eventbus.on('CreateAgentStepEvent', event_collector.collect_step_event)
+            agent.eventbus.on('UpdateAgentTaskEvent', event_collector.collect_task_completion)
+            agent.eventbus.on('ErrorEvent', event_collector.collect_error_event)
+            
+            self.logger.info(f"开始执行任务: {test_case.task_content[:100]}...")
+            
+            start_time = beijing_now()
+            
+            # 如果是在批量执行中，注册到任务上下文
+            if batch_execution_id:
+                # 创建agent执行任务
+                agent_task = asyncio.create_task(agent.run())
                 
-                # 加载自定义提示词
-                custom_prompt = self._load_custom_prompt()
+                # 注册到任务上下文
+                await task_context.register_test_case(batch_execution_id, test_case.id, browser, agent_task)
                 
-                # 合并默认提示词和自定义提示词
-                final_prompt = TEST_SYSTEM_PROMPT
-                if custom_prompt:
-                    final_prompt = f"{TEST_SYSTEM_PROMPT}\n\n{custom_prompt}"
-                
-                # 使用Browser Use Agent
-                from browser_use import Agent
-                
-                # 使用多模型服务创建LLM实例
-                config = self.multi_llm_service._load_multi_model_config()
-                request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
-                print(f"使用API key:{request_config.model_type}-- {request_config.api_key}")
-                
-                llm = self.multi_llm_service._create_llm_instance(request_config)
-                
-                # 创建事件收集器
-                event_collector = event_manager.create_collector(test_case.id, execution.id)
-                
-                agent = Agent(
-                    task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
-                    llm=llm,
-                    page=page,
-                    use_vision=True,
-                    output_model_schema=ControllerTestResult,
-                    extend_system_message=final_prompt,
-                    browser_profile=browser_profile,
-                    llm_timeout=120,    # LLM调用超时时间（秒）
-                    step_timeout=300    # 每个步骤的超时时间（秒）
-                )
-                
-                # 注册事件监听器
-                agent.eventbus.on('CreateAgentStepEvent', event_collector.collect_step_event)
-                agent.eventbus.on('UpdateAgentTaskEvent', event_collector.collect_task_completion)
-                agent.eventbus.on('ErrorEvent', event_collector.collect_error_event)
-                
-                self.logger.info(f"开始执行任务: {test_case.task_content[:100]}...")
-                
-                start_time = beijing_now()
-                
-                # 如果是在批量执行中，注册到任务上下文
-                if batch_execution_id:
-                    # 创建agent执行任务
-                    agent_task = asyncio.create_task(agent.run())
-                    
-                    # 注册到任务上下文
-                    await task_context.register_test_case(batch_execution_id, test_case.id, browser, agent_task)
-                    
-                    try:
-                        # 等待agent任务完成
-                        history = await agent_task
-                        # 添加调试代码：打印agent.run()的结果
-                        self.logger.info(f"=== DEBUG: agent.run() 批量执行结果 ===")
-                        self.logger.info(f"结果内容: {history}")
-
-                        
-                        # 新增代码：解析测试结果
-                        test_result = None
-                        test_result_data = {}
-                        
-                        # 获取最终结果
-                        final_result = history.final_result() if hasattr(history, 'final_result') else None
-                        self.logger.info(f"🔍 最终结果: {final_result}")
-                        
-                        if final_result:
-                            try:
-                                # 解析测试结果
-                                test_result = TestResult.model_validate_json(final_result)
-                                self.logger.info("✅ 成功解析测试结果:")
-                                self.logger.info(f"  测试名称: {test_result.test_name}")
-                                self.logger.info(f"  整体状态: {test_result.overall_status}")
-                                self.logger.info(f"  总步骤数: {test_result.total_steps}")
-                                self.logger.info(f"  通过步骤: {test_result.passed_steps}")
-                                self.logger.info(f"  失败步骤: {test_result.failed_steps}")
-                                self.logger.info(f"  跳过步骤: {test_result.skipped_steps}")
-                                self.logger.info(f"  总执行时间: {test_result.total_duration}秒")
-                                self.logger.info(f"  测试总结: {test_result.summary}")
-                                self.logger.info(f"  改进建议: {test_result.recommendations}")
-                                
-                                # 根据解析后的test_result对象判断测试结果
-                                test_result_data = {
-                                    "success": test_result.overall_status == "PASSED",
-                                    "overall_status": test_result.overall_status,
-                                    "total_steps": test_result.total_steps,
-                                    "passed_steps": test_result.passed_steps,
-                                    "failed_steps": test_result.failed_steps,
-                                    "skipped_steps": test_result.skipped_steps,
-                                    "total_duration": test_result.total_duration,
-                                    "summary": test_result.summary,
-                                    "recommendations": test_result.recommendations
-                                }
-                                
-                            except Exception as e:
-                                self.logger.error(f"❌ 解析测试结果失败: {e}")
-                                self.logger.info("📋 原始结果:")
-                                self.logger.info(final_result)
-                                # 使用默认的测试结果数据
-                                test_result_data = {
-                                    "success": False,
-                                    "overall_status": "FAILED",
-                                    "total_steps": 0,
-                                    "passed_steps": 0,
-                                    "failed_steps": 0,
-                                    "skipped_steps": 0,
-                                    "total_duration": 0,
-                                    "summary": f"解析测试结果失败: {str(e)}",
-                                    "recommendations": None
-                                }
-                        else:
-                            self.logger.warning("❌ 没有获得测试结果")
-                            # 检查是否有详细的分析信息可以输出
-                            if hasattr(history, 'action_names'):
-                                self.logger.info("📋 执行的动作:")
-                                for action in history.action_names():
-                                    self.logger.info(f"  - {action}")
-                            
-                            if hasattr(history, 'errors') and history.errors():
-                                self.logger.info("🚨 执行错误:")
-                                for error in history.errors():
-                                    if error:
-                                        self.logger.info(f"  - {error}")
-                            
-                            # 使用默认的测试结果数据
-                            test_result_data = {
-                                "success": False,
-                                "overall_status": "FAILED",
-                                "total_steps": 0,
-                                "passed_steps": 0,
-                                "failed_steps": 0,
-                                "skipped_steps": 0,
-                                "total_duration": 0,
-                                "summary": "没有获得测试结果",
-                                "recommendations": None
-                            }
-                    except asyncio.CancelledError:
-                        self.logger.info(f"测试用例 {test_case.id} 被取消")
-                        # 重新抛出取消异常，让上层知道任务被取消
-                        raise
-                    finally:
-                        # 注意：不要在这里注销测试用例，让任务上下文管理浏览器生命周期
-                        # 只有在批量任务完成或被取消时，才统一清理
-                        pass
-                else:
-                    # 单个测试执行，直接运行
-                    history = await agent.run()
+                try:
+                    # 等待agent任务完成
+                    history = await agent_task
                     # 添加调试代码：打印agent.run()的结果
-
+                    self.logger.info(f"=== DEBUG: agent.run() 批量执行结果 ===")
                     self.logger.info(f"结果内容: {history}")
 
+                    
                     # 新增代码：解析测试结果
                     test_result = None
                     test_result_data = {}
@@ -914,6 +795,99 @@ class TestExecutor:
                             "summary": "没有获得测试结果",
                             "recommendations": None
                         }
+                except asyncio.CancelledError:
+                    self.logger.info(f"测试用例 {test_case.id} 被取消")
+                    # 重新抛出取消异常，让上层知道任务被取消
+                    raise
+                finally:
+                    # 注意：不要在这里注销测试用例，让任务上下文管理浏览器生命周期
+                    # 只有在批量任务完成或被取消时，才统一清理
+                    pass
+            else:
+                # 单个测试执行，直接运行
+                history = await agent.run()
+                # 添加调试代码：打印agent.run()的结果
+
+                self.logger.info(f"结果内容: {history}")
+
+                # 新增代码：解析测试结果
+                test_result = None
+                test_result_data = {}
+                
+                # 获取最终结果
+                final_result = history.final_result() if hasattr(history, 'final_result') else None
+                self.logger.info(f"🔍 最终结果: {final_result}")
+                
+                if final_result:
+                    try:
+                        # 解析测试结果
+                        test_result = TestResult.model_validate_json(final_result)
+                        self.logger.info("✅ 成功解析测试结果:")
+                        self.logger.info(f"  测试名称: {test_result.test_name}")
+                        self.logger.info(f"  整体状态: {test_result.overall_status}")
+                        self.logger.info(f"  总步骤数: {test_result.total_steps}")
+                        self.logger.info(f"  通过步骤: {test_result.passed_steps}")
+                        self.logger.info(f"  失败步骤: {test_result.failed_steps}")
+                        self.logger.info(f"  跳过步骤: {test_result.skipped_steps}")
+                        self.logger.info(f"  总执行时间: {test_result.total_duration}秒")
+                        self.logger.info(f"  测试总结: {test_result.summary}")
+                        self.logger.info(f"  改进建议: {test_result.recommendations}")
+                        
+                        # 根据解析后的test_result对象判断测试结果
+                        test_result_data = {
+                            "success": test_result.overall_status == "PASSED",
+                            "overall_status": test_result.overall_status,
+                            "total_steps": test_result.total_steps,
+                            "passed_steps": test_result.passed_steps,
+                            "failed_steps": test_result.failed_steps,
+                            "skipped_steps": test_result.skipped_steps,
+                            "total_duration": test_result.total_duration,
+                            "summary": test_result.summary,
+                            "recommendations": test_result.recommendations
+                        }
+                        
+                    except Exception as e:
+                        self.logger.error(f"❌ 解析测试结果失败: {e}")
+                        self.logger.info("📋 原始结果:")
+                        self.logger.info(final_result)
+                        # 使用默认的测试结果数据
+                        test_result_data = {
+                            "success": False,
+                            "overall_status": "FAILED",
+                            "total_steps": 0,
+                            "passed_steps": 0,
+                            "failed_steps": 0,
+                            "skipped_steps": 0,
+                            "total_duration": 0,
+                            "summary": f"解析测试结果失败: {str(e)}",
+                            "recommendations": None
+                        }
+                else:
+                    self.logger.warning("❌ 没有获得测试结果")
+                    # 检查是否有详细的分析信息可以输出
+                    if hasattr(history, 'action_names'):
+                        self.logger.info("📋 执行的动作:")
+                        for action in history.action_names():
+                            self.logger.info(f"  - {action}")
+                    
+                    if hasattr(history, 'errors') and history.errors():
+                        self.logger.info("🚨 执行错误:")
+                        for error in history.errors():
+                            if error:
+                                self.logger.info(f"  - {error}")
+                    
+                    # 使用默认的测试结果数据
+                    test_result_data = {
+                        "success": False,
+                        "overall_status": "FAILED",
+                        "total_steps": 0,
+                        "passed_steps": 0,
+                        "failed_steps": 0,
+                        "skipped_steps": 0,
+                        "total_duration": 0,
+                        "summary": "没有获得测试结果",
+                        "recommendations": None
+                    }
                 
                 end_time = beijing_now()
                 total_duration = (end_time - start_time).total_seconds()
@@ -974,12 +948,11 @@ class TestExecutor:
                     "history_path": history_path
                 }
                 
-            finally:
-                # 确保浏览器被关闭
-                try:
-                    await browser.close()
-                except Exception as e:
-                    self.logger.warning(f"关闭浏览器时出错: {e}")
+        finally:
+            # 确保浏览器被关闭
+            if agent is not None:
+                await agent.close()
+
     
     def _load_custom_prompt(self) -> str:
         """加载自定义提示词"""
@@ -995,8 +968,6 @@ class TestExecutor:
             return ""
         except Exception as e:
             self.logger.warning(f"加载自定义提示词失败: {e}")
-            return ""
-
             return ""
 
     def _save_screenshots(self, history, execution_id: int) -> List[str]:
@@ -1177,185 +1148,176 @@ class TestExecutor:
             self.logger.info(f"=== 开始尝试从 history 回放测试用例 {test_case.id} ===")
             self.logger.info(f"测试用例 {test_case.id} 的 history_path: {test_case.history_path}")
             
-            # 创建浏览器实例
-            from playwright.async_api import async_playwright
+
+            # 先创建LLM实例
+            self.logger.info("开始创建LLM实例...")
+            config = self.multi_llm_service._load_multi_model_config()
+            request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
+            print(f"使用API key:{request_config.model_type}-- {request_config.api_key}")
             
-            # 创建 BrowserProfile 禁用默认扩展和代理
-            browser_profile = BrowserProfile(
-                enable_default_extensions=False,
+            llm = self.multi_llm_service._create_llm_instance(request_config)
+            self.logger.info("LLM实例创建成功")
+            
+            # 加载自定义提示词
+            custom_prompt = self._load_custom_prompt()
+            
+            # 合并默认提示词和自定义提示词
+            final_prompt = TEST_SYSTEM_PROMPT
+            if custom_prompt:
+                final_prompt = f"{TEST_SYSTEM_PROMPT}\n\n{custom_prompt}"
+
+            from browser_use import Browser, Agent
+            
+            # 使用 browser_use 的 Browser 类
+            browser = Browser(
                 headless=headless,
-                proxy=None  # 明确禁用代理
+                highlight_elements=False,
             )
             
-            async with async_playwright() as p:
-                self.logger.info(f"启动浏览器实例，headless: {headless}")
-                browser = await p.chromium.launch(
-                    headless=False,
-                    args=[
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-extensions',
-                        '--disable-accelerated-2d-canvas',
-                        '--no-first-run',
-                        '--no-zygote',
-                        '--disable-gpu',
-                        '--disable-features=VizDisplayCompositor',
-                        '--disable-web-security',
-                        '--disable-background-timer-throttling',
-                        '--disable-backgrounding-occluded-windows',
-                        '--disable-renderer-backgrounding',
-                        '--disable-features=TranslateUI',
-                        '--disable-ipc-flooding-protection',
-                        '--no-proxy-server',  # 禁用代理服务器
-                        '--proxy-bypass-list=*',  # 绕过所有代理
-                    ]
-                )
+            # 创建事件收集器
+            event_collector = event_manager.create_collector(test_case.id, execution.id)
+            
+            # 创建Agent
+            agent = Agent(
+                task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
+                llm=llm,
+                browser=browser,
+                use_vision=True,
+                output_model_schema=ControllerTestResult,
+                extend_system_message=final_prompt,
+                llm_timeout=120,    # LLM调用超时时间（秒）
+                step_timeout=300    # 每个步骤的超时时间（秒）
+            )
+            
+            try:
                 
+                # 注册事件监听器 - 和正常执行一样
+                agent.eventbus.on('CreateAgentStepEvent', event_collector.collect_step_event)
+                agent.eventbus.on('UpdateAgentTaskEvent', event_collector.collect_task_completion)
+                agent.eventbus.on('ErrorEvent', event_collector.collect_error_event)
+                
+                self.logger.info("Agent实例创建成功，开始历史回放...")
+
+                print("启动浏览器会话...")
+                from browser_use.browser.events import BrowserStartEvent
+                event = agent.browser_session.event_bus.dispatch(BrowserStartEvent())
+                await event
+                await event.event_result(raise_if_any=True, raise_if_none=False)
+                print("浏览器会话已启动")                    
+                start_time = beijing_now()
+                
+                # 尝试从 history 回放
                 try:
-                    page = await browser.new_page()
-                    self.logger.info("浏览器页面创建成功")
+                    # 根据相对路径获取完整路径
+                    self.logger.info(f"解析 history 文件路径...")
+                    full_history_path = self._get_history_path_from_relative(test_case.history_path)
+                    self.logger.info(f"解析后的完整 history 路径: {full_history_path}")
                     
-                    # 使用多模型服务创建LLM实例
-                    self.logger.info("开始创建LLM实例...")
-                    config = self.multi_llm_service._load_multi_model_config()
-                    request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
+                    if not full_history_path:
+                        self.logger.warning(f"无法解析 history 路径: {test_case.history_path}")
+                        return None
                     
-                    llm = self.multi_llm_service._create_llm_instance(request_config)
-                    self.logger.info("LLM实例创建成功")
+                    if not full_history_path.exists():
+                        self.logger.warning(f"History 文件不存在: {full_history_path}")
+                        return None
                     
-                    # 创建增强的 Agent 并尝试回放
-                    self.logger.info("开始创建增强Agent实例...")
-                    # from .enhanced_agent import create_enhanced_agent_with_collector  # 模块不存在，暂时注释
+                    self.logger.info(f"开始调用 agent.load_and_rerun() 进行回放...")
+                    # 使用标准的 agent.load_and_rerun() 方法回放，现在支持事件监听
+                    history = await agent.load_and_rerun(str(full_history_path))
+                    self.logger.info(f"agent.load_and_rerun() 调用完成，返回结果类型: {type(history)}")
                     
-                    # 创建带事件收集器的增强 Agent
-                    # agent = create_enhanced_agent_with_collector(  # 模块不存在，暂时注释
-                    #     test_case_id=test_case.id,
-                    #     execution_id=execution.id,
-                    #     task=f"# 操作步骤\n{test_case.task_content}\n\n# 预期结果:\n{test_case.expected_result}",
-                    #     llm=llm,
-                    #     page=page,
-                    #     use_vision=True,
-                    #     output_model_schema=ControllerTestResult,
-                    #     extend_system_message=TEST_SYSTEM_PROMPT,
-                    #     browser_profile=browser_profile,
-                    # )
-                    # self.logger.info("增强Agent实例创建成功")
+                    end_time = beijing_now()
+                    total_duration = (end_time - start_time).total_seconds()
+                    self.logger.info(f"回放总耗时: {total_duration} 秒")
                     
-                    # 暂时跳过增强Agent功能，直接返回None
-                    self.logger.warning("增强Agent模块不存在，跳过history回放功能")
+                    # 解析回放结果 - 和正常执行一样的方式
+                    test_result = None
+                    test_result_data = {}
+                    
+                    # 获取最终结果
+                    final_result = history.final_result() if hasattr(history, 'final_result') else None
+                    self.logger.info(f"🔍 最终结果: {final_result}")
+                    
+                    if final_result:
+                        try:
+                            # 解析测试结果
+                            test_result = TestResult.model_validate_json(final_result)
+                            self.logger.info("✅ 成功解析测试结果:")
+                            self.logger.info(f"  测试名称: {test_result.test_name}")
+                            self.logger.info(f"  整体状态: {test_result.overall_status}")
+                            self.logger.info(f"  总步骤数: {test_result.total_steps}")
+                            self.logger.info(f"  通过步骤: {test_result.passed_steps}")
+                            self.logger.info(f"  失败步骤: {test_result.failed_steps}")
+                            self.logger.info(f"  跳过步骤: {test_result.skipped_steps}")
+                            self.logger.info(f"  总执行时间: {test_result.total_duration}秒")
+                            self.logger.info(f"  测试总结: {test_result.summary}")
+                            self.logger.info(f"  改进建议: {test_result.recommendations}")
+                            
+                            # 根据解析后的test_result对象判断测试结果
+                            test_result_data = {
+                                "success": test_result.overall_status == "PASSED",
+                                "overall_status": test_result.overall_status,
+                                "total_steps": test_result.total_steps,
+                                "passed_steps": test_result.passed_steps,
+                                "failed_steps": test_result.failed_steps,
+                                "skipped_steps": test_result.skipped_steps,
+                                "total_duration": total_duration,
+                                "summary": test_result.summary,
+                                "recommendations": test_result.recommendations,
+                                "from_history": True
+                            }
+                            
+                        except Exception as e:
+                            self.logger.warning(f"解析测试结果失败: {e}")
+                            # 如果解析失败，使用事件收集器的结果
+                            if event_collector.step_events:
+                                test_result_data = event_collector.convert_to_test_result()
+                                test_result_data["from_history"] = True
+                            else:
+                                test_result_data = {
+                                    "success": False,
+                                    "overall_status": "FAILED",
+                                    "total_duration": total_duration,
+                                    "summary": "历史回放执行完成，但无法解析结果",
+                                    "recommendations": "建议检查历史文件格式或重新执行测试",
+                                    "from_history": True
+                                }
+                    else:
+                        self.logger.warning("未获取到最终结果，使用事件收集器结果")
+                        # 如果没有最终结果，使用事件收集器的结果
+                        if event_collector.step_events:
+                            test_result_data = event_collector.convert_to_test_result()
+                            test_result_data["from_history"] = True
+                        else:
+                            test_result_data = {
+                                "success": False,
+                                "overall_status": "FAILED",
+                                "total_duration": total_duration,
+                                "summary": "历史回放执行完成，但未获取到有效结果",
+                                "recommendations": "建议检查历史文件或重新执行测试",
+                                "from_history": True
+                            }
+                    
+                    # 保存截图
+                    screenshots = self._save_screenshots(history, execution.id)
+                    test_result_data["screenshots"] = screenshots
+                    
+                    self.logger.info(f"✅ 从 history 回放测试用例 {test_case.id} 完成")
+                    return test_result_data
+                    
+                except Exception as e:
+                    self.logger.warning(f"从 history 回放失败: {e}")
+                    import traceback
+                    self.logger.warning(f"回放失败详细错误: {traceback.format_exc()}")
                     return None
                     
-                    start_time = beijing_now()
+            finally:
+                # 确保浏览器被关闭
+                try:
+                    await agent.close()
+                except Exception as e:
+                    self.logger.warning(f"关闭浏览器时出错: {e}")
                     
-                    # 尝试从 history 回放
-                    try:
-                        # 根据相对路径获取完整路径
-                        self.logger.info(f"解析 history 文件路径...")
-                        full_history_path = self._get_history_path_from_relative(test_case.history_path)
-                        self.logger.info(f"解析后的完整 history 路径: {full_history_path}")
-                        
-                        if not full_history_path:
-                            self.logger.warning(f"无法解析 history 路径: {test_case.history_path}")
-                            return None
-                        
-                        if not full_history_path.exists():
-                            self.logger.warning(f"History 文件不存在: {full_history_path}")
-                            return None
-                        
-                        self.logger.info(f"开始调用增强的 agent.load_and_rerun_with_events() 进行回放...")
-                        # 使用增强的 agent.load_and_rerun_with_events() 方法回放，支持事件监听
-                        history_result = await agent.load_and_rerun_with_events(
-                            str(full_history_path),
-                            max_retries=3,
-                            skip_failures=True,
-                            delay_between_actions=2.0
-                        )
-                        self.logger.info(f"agent.load_and_rerun_with_events() 调用完成，返回结果类型: {type(history_result)}")
-                        
-                        if history_result:
-                            self.logger.info(f"回放返回结果长度: {len(history_result) if isinstance(history_result, list) else 'N/A'}")
-                        else:
-                            self.logger.warning("回放返回结果为空")
-                        
-                        print("重放结果：")
-                        print(history_result)
-                        end_time = beijing_now()
-                        total_duration = (end_time - start_time).total_seconds()
-                        self.logger.info(f"回放总耗时: {total_duration} 秒")
-                        
-                        # 解析回放结果
-                        if history_result and isinstance(history_result, list) and len(history_result) > 0:
-                            try:
-                                self.logger.info("开始解析回放结果...")
-                                # 查找最后一个 ActionResult，它应该包含最终的测试结果
-                                final_action = None
-                                for action in reversed(history_result):
-                                    if hasattr(action, 'is_done') and action.is_done:
-                                        final_action = action
-                                        break
-                                
-                                if final_action and final_action.extracted_content:
-                                    self.logger.info("找到包含最终结果的 ActionResult")
-                                    # 尝试解析 extracted_content 中的 JSON 数据
-                                    try:
-                                        # 查找 JSON 格式的测试结果
-                                        import json
-                                        import re
-                                        
-                                        # 使用正则表达式查找 JSON 数据
-                                        json_match = re.search(r'\{.*\}', final_action.extracted_content, re.DOTALL)
-                                        if json_match:
-                                            json_str = json_match.group()
-                                            self.logger.info(f"从 extracted_content 中提取到 JSON 数据: {json_str[:200]}...")
-                                            test_result = TestResult.model_validate_json(json_str)
-                                            
-                                            # 保存截图
-                                            screenshots = self._save_screenshots(history_result, execution.id)
-                                            
-                                            self.logger.info(f"✅ 从 history 回放测试用例 {test_case.id} 成功")
-                                            
-                                            return {
-                                                "success": test_result.overall_status == "PASSED",
-                                                "overall_status": test_result.overall_status,
-                                                "total_duration": total_duration,
-                                                "summary": test_result.summary,
-                                                "recommendations": test_result.recommendations,
-                                                "screenshots": screenshots,
-                                                "browser_logs": [action.extracted_content for action in history_result if action.extracted_content],
-                                                "from_history": True
-                                            }
-                                        else:
-                                            self.logger.warning(f"在 extracted_content 中未找到 JSON 格式的测试结果")
-                                            return None
-                                            
-                                    except Exception as e:
-                                        self.logger.warning(f"解析 extracted_content 中的 JSON 失败: {e}")
-                                        return None
-                                else:
-                                    self.logger.warning(f"未找到包含最终结果的 ActionResult")
-                                    return None
-                                    
-                            except Exception as e:
-                                self.logger.warning(f"解析回放结果失败: {e}")
-                                return None
-                        else:
-                            self.logger.warning(f"回放没有返回有效结果")
-                            return None
-                            
-                    except Exception as e:
-                        self.logger.warning(f"从 history 回放失败: {e}")
-                        import traceback
-                        self.logger.warning(f"回放失败详细错误: {traceback.format_exc()}")
-                        return None
-                        
-                finally:
-                    # 确保浏览器被关闭
-                    try:
-                        await browser.close()
-                    except Exception as e:
-                        self.logger.warning(f"关闭浏览器时出错: {e}")
-                        
         except Exception as e:
             self.logger.error(f"从 history 回放测试用例 {test_case.id} 失败: {e}")
             import traceback

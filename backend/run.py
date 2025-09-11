@@ -16,7 +16,10 @@ sys.path.insert(0, str(src_path))
 def main():
     """主函数"""
     print("🚀 启动AutoTest API服务...")
-    
+
+    os.environ["ANONYMIZED_TELEMETRY"] = "false"
+    os.environ["BROWSER_USE_CLOUD_SYNC"] = "false"
+        
     # 检查环境变量
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))

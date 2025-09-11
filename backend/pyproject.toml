@@ -6,7 +6,7 @@ authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
 dependencies = [
-    "browser-use>=0.7.1",
+    "browser-use @ git+https://gitee.com/enation-inc/browser-use-plus.git@0.7.7.1-fix",
     "fastapi>=0.104.0",
     "playwright>=1.54.0",
     "pymysql>=1.1.1",
@@ -29,6 +29,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/autotest"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.uv]
 dev-dependencies = [

@@ -85,18 +85,9 @@ class BrowserUseEventCollector:
         """收集步骤执行事件"""
         try:
             self.logger.info(f"收到步骤事件: {type(event).__name__}")
-            
+   
             # 记录步骤开始时间
             step_number = getattr(event, 'step', 0)
-            
-            # 如果是回放模式，使用回放步骤编号
-            if hasattr(event, 'replay_mode') and event.replay_mode:
-                replay_step_number = getattr(event, 'replay_step_number', step_number)
-                if replay_step_number > 0:
-                    step_number = replay_step_number
-                    self.logger.info(f"🔄 回放模式，使用步骤编号: {step_number}")
-                else:
-                    self.logger.warning(f"⚠️ 回放模式但步骤编号为0，使用原始编号: {step_number}")
             
             if step_number > 0 and step_number not in self.step_start_times:
                 self.step_start_times[step_number] = beijing_now()
