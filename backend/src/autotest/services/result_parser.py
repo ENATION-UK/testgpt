@@ -16,8 +16,34 @@ class ResultParserService:
         """解析测试结果"""
         test_result_data = {}
         
+        # 输出history对象的JSON格式
+        import json
+        try:
+            history_json = json.dumps(history, default=str, indent=2, ensure_ascii=False)
+            self.logger.info(f"🔍 History对象JSON: {history_json}")
+        except Exception as e:
+            self.logger.info(f"🔍 History对象无法转换为JSON: {e}")
+            self.logger.info(f"🔍 History对象类型: {type(history)}")
+            self.logger.info(f"🔍 History对象内容: {history}")
+        
         final_result = history.final_result() if hasattr(history, 'final_result') else None
         self.logger.info(f"🔍 最终结果: {final_result}")
+        
+        # 如果final_result()返回None，尝试从history列表中获取最后一个步骤的结果
+        if not final_result and isinstance(history, list) and len(history) > 0:
+            last_step = history[-1]
+            self.logger.info(f"🔍 最后一步: {last_step}")
+            
+            # 检查最后一步是否包含extracted_content
+            if hasattr(last_step, 'extracted_content') and last_step.extracted_content:
+                try:
+                    # 尝试解析extracted_content中的JSON
+                    extracted_json = json.loads(last_step.extracted_content)
+                    if isinstance(extracted_json, dict) and 'test_name' in extracted_json:
+                        final_result = last_step.extracted_content
+                        self.logger.info(f"🔍 从最后一步提取到结果: {final_result}")
+                except (json.JSONDecodeError, AttributeError) as e:
+                    self.logger.info(f"🔍 最后一步extracted_content不是有效JSON: {e}")
         
         if final_result:
             try:
