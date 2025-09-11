@@ -364,72 +364,420 @@ def init_db():
         if existing_count == 0:
             # 插入测试数据
             test_cases = [
+                # 1. 首页功能测试
                 TestCase(
-                    name="用户登录测试",
+                    name="首页统计信息展示测试",
                     task_content="""
-
-# 登录测试
-打开 https://admin-bbc740.javamall.com.cn/
-输入用户名superadmin
-密码111111
-验证码1111
-
-# 验证条件
-是否正常进入控制台
-                    
+# 操作步骤
+1.打开：http://localhost:3000
+2.验证首页统计卡片是否正确显示：
+   - 测试用例总数
+   - 执行次数
+   - 成功率
+   - 平均耗时
+3.验证快速操作按钮是否可点击：
+   - 管理测试用例
+   - 查看执行记录
+   - 查看统计信息
+4.验证最近执行记录区域是否正常显示
                     """,
                     status="active",
                     priority="high",
-                    category="登录功能",
-                    tags=["login", "authentication"],
-                    expected_result="成功登录并进入控制台页面"
+                    category="首页功能",
+                    tags=["home", "statistics", "dashboard"],
+                    expected_result="""
+                    首页功能正常：
+                    - 统计卡片正确显示数据
+                    - 快速操作按钮可正常跳转
+                    - 最近执行记录区域正常显示（如果有数据）
+                    """
                 ),
+                
+                # 2. 测试用例管理功能测试
                 TestCase(
-                    name="商品查询测试",
+                    name="测试用例创建和编辑测试",
                     task_content="""
 # 操作步骤
-1.打开：https://buyer-bbc740.javamall.com.cn/login
-2.点击`账号登录`
-3.输入：
-用户名: food
-密码: 111111
-验证码: 1111
-4.点击登录按钮
-# 验证方法
-登录成功后会跳到首页
-首页的导航条部分会有`我的账户`字样
+1.打开：http://localhost:3000/test-cases
+2.点击`创建测试用例`按钮
+3.填写测试用例信息：
+   - 名称：测试用例管理功能验证
+   - 操作步骤：验证测试用例的增删改查功能
+   - 预期结果：能够正常创建、编辑、删除测试用例
+   - 优先级：高
+   - 分类：测试管理
+   - 标签：management, crud
+4.点击创建按钮
+5.验证用例是否出现在列表中
+6.点击编辑按钮，修改用例信息
+7.点击查看按钮，验证用例详情
+8.点击删除按钮，确认删除
+                    """,
+                    status="active",
+                    priority="high",
+                    category="测试管理",
+                    tags=["test-case", "crud", "management"],
+                    expected_result="""
+                    测试用例管理功能正常：
+                    - 能够成功创建测试用例
+                    - 用例列表正确显示新创建的用例
+                    - 编辑功能正常工作
+                    - 查看功能正常显示详情
+                    - 删除功能正常工作
+                    """
+                ),
+                
+                # 3. 分类管理功能测试
+                TestCase(
+                    name="分类管理功能测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000/categories
+2.点击`创建分类`按钮
+3.填写分类信息：
+   - 分类名称：功能测试
+   - 描述：用于功能测试的分类
+4.点击创建按钮
+5.验证分类是否出现在树形结构中
+6.点击`添加子分类`按钮，创建子分类：
+   - 子分类名称：UI测试
+   - 描述：用户界面测试
+7.验证子分类是否正确显示在父分类下
+8.点击编辑按钮，修改分类信息
+9.点击删除按钮，删除测试分类
                     """,
                     status="active",
                     priority="medium",
-                    category="商品管理",
-                    tags=["product", "search"],
-                    expected_result="能够正确搜索并显示商品信息"
+                    category="分类管理",
+                    tags=["category", "tree", "management"],
+                    expected_result="""
+                    分类管理功能正常：
+                    - 能够成功创建分类
+                    - 分类树形结构正确显示
+                    - 子分类创建功能正常
+                    - 编辑功能正常工作
+                    - 删除功能正常工作
+                    """
                 ),
+                
+                # 4. Excel导入功能测试
                 TestCase(
-                    name="订单创建测试",
+                    name="Excel批量导入功能测试",
                     task_content="""
-# 订单创建测试
-打开 https://seller-bbc740.javamall.com.cn/
-登录系统
-进入订单管理页面
-创建新订单
-填写订单信息
-提交订单
-验证订单是否创建成功
+# 操作步骤
+1.打开：http://localhost:3000/excel-import
+2.选择导入模式：
+   - 智能识别模式：支持各种格式的Excel文件
+   - 标准模版模式：使用统一的标准模版格式
+3.如果选择标准模版模式，点击`下载标准模版`按钮
+4.点击`选择文件`按钮，选择一个Excel文件
+5.填写导入选项：
+   - 任务名称：Excel导入测试
+   - 批次大小：10
+   - 默认状态：active
+   - 默认优先级：medium
+   - 默认分类：导入测试
+6.点击`开始导入`按钮
+7.观察导入进度和状态
+8.验证导入结果是否正确
                     """,
-                    status="inactive",
+                    status="active",
                     priority="medium",
-                    category="订单管理",
-                    tags=["order", "create"],
-                    expected_result="订单创建成功并显示在订单列表中"
+                    category="数据导入",
+                    tags=["excel", "import", "batch"],
+                    expected_result="""
+                    Excel导入功能正常：
+                    - 能够正确识别Excel文件格式
+                    - 导入进度正确显示
+                    - 导入结果准确
+                    - 错误处理机制正常
+                    """
+                ),
+                
+                # 5. 执行记录功能测试
+                TestCase(
+                    name="执行记录查看和管理测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000/executions
+2.验证执行记录列表是否正确显示：
+   - 执行名称
+   - 测试用例名称
+   - 执行状态
+   - 开始时间
+   - 执行时长
+3.点击某个执行记录，查看详细信息
+4.验证执行详情页面是否包含：
+   - 执行状态和结果
+   - 执行步骤详情
+   - 错误信息（如果有）
+   - 截图信息（如果有）
+5.测试筛选功能：
+   - 按状态筛选
+   - 按时间范围筛选
+   - 按测试用例筛选
+                    """,
+                    status="active",
+                    priority="medium",
+                    category="执行管理",
+                    tags=["execution", "history", "monitoring"],
+                    expected_result="""
+                    执行记录功能正常：
+                    - 执行记录列表正确显示
+                    - 执行详情页面信息完整
+                    - 筛选功能正常工作
+                    - 状态和结果信息准确
+                    """
+                ),
+                
+                # 6. 批量执行功能测试
+                TestCase(
+                    name="批量执行功能测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000/test-cases
+2.选择多个测试用例（至少2个）
+3.点击`批量执行`按钮
+4.填写批量执行配置：
+   - 执行名称：批量执行测试
+   - 执行模式：无头模式
+5.点击`开始执行`按钮
+6.跳转到批量执行详情页面
+7.观察批量执行进度：
+   - 总用例数
+   - 成功执行数
+   - 失败执行数
+   - 正在执行数
+   - 待执行数
+8.验证每个用例的执行状态和结果
+                    """,
+                    status="active",
+                    priority="high",
+                    category="批量执行",
+                    tags=["batch", "execution", "parallel"],
+                    expected_result="""
+                    批量执行功能正常：
+                    - 能够正确选择多个测试用例
+                    - 批量执行配置正确
+                    - 执行进度实时更新
+                    - 各用例执行状态准确
+                    - 执行结果正确汇总
+                    """
+                ),
+                
+                # 7. 统计信息功能测试
+                TestCase(
+                    name="统计信息页面测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000/statistics
+2.验证统计概览卡片：
+   - 测试用例总数
+   - 执行总次数
+   - 成功率
+   - 平均耗时
+3.验证分类统计图表：
+   - 各分类的用例数量
+   - 各分类的执行情况
+4.验证优先级统计图表：
+   - 各优先级的用例分布
+   - 各优先级的执行情况
+5.验证趋势分析图表：
+   - 执行趋势图
+   - 成功率趋势图
+6.验证时间范围筛选功能
+                    """,
+                    status="active",
+                    priority="medium",
+                    category="统计分析",
+                    tags=["statistics", "charts", "analytics"],
+                    expected_result="""
+                    统计信息功能正常：
+                    - 统计概览数据准确
+                    - 分类统计图表正确显示
+                    - 优先级统计图表正确显示
+                    - 趋势分析图表正确显示
+                    - 时间筛选功能正常工作
+                    """
+                ),
+                
+                # 8. 模型设置功能测试
+                TestCase(
+                    name="多模型配置功能测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000/multi-model-settings
+2.验证模型提供商配置区域：
+   - 提供商名称
+   - API密钥配置
+   - 模型选择
+   - 启用/禁用开关
+3.点击`添加提供商`按钮，添加新的模型提供商
+4.填写提供商信息：
+   - 提供商名称：测试提供商
+   - API密钥：test-key
+   - 选择模型：gpt-3.5-turbo
+   - 启用该提供商
+5.点击`测试配置`按钮，验证配置是否正确
+6.点击`保存配置`按钮
+7.验证配置是否成功保存
+8.测试删除提供商功能
+                    """,
+                    status="active",
+                    priority="medium",
+                    category="系统配置",
+                    tags=["model", "config", "api"],
+                    expected_result="""
+                    多模型配置功能正常：
+                    - 能够正确添加模型提供商
+                    - 配置测试功能正常
+                    - 配置保存功能正常
+                    - 提供商管理功能正常
+                    """
+                ),
+                
+                # 9. 提示词设置功能测试
+                TestCase(
+                    name="提示词设置功能测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000/prompt-settings
+2.验证提示词配置区域：
+   - 系统提示词
+   - 用户提示词模板
+   - 错误处理提示词
+3.修改系统提示词内容
+4.修改用户提示词模板
+5.点击`保存设置`按钮
+6.验证设置是否成功保存
+7.点击`重置为默认`按钮
+8.验证是否恢复到默认设置
+9.测试提示词预览功能
+                    """,
+                    status="active",
+                    priority="low",
+                    category="系统配置",
+                    tags=["prompt", "template", "config"],
+                    expected_result="""
+                    提示词设置功能正常：
+                    - 能够正确修改提示词内容
+                    - 设置保存功能正常
+                    - 重置功能正常工作
+                    - 预览功能正常显示
+                    """
+                ),
+                
+                # 10. 导航和页面跳转测试
+                TestCase(
+                    name="页面导航和跳转测试",
+                    task_content="""
+# 操作步骤
+1.打开：http://localhost:3000
+2.测试顶部导航栏的所有链接：
+   - 首页
+   - 测试用例
+   - 分类管理
+   - Excel导入
+   - 执行记录
+   - 批量执行
+   - 统计信息
+   - 模型设置
+   - 提示词设置
+3.验证每个页面是否正确加载
+4.验证页面标题和内容是否正确
+5.测试浏览器前进后退功能
+6.测试页面刷新功能
+7.验证响应式布局在不同屏幕尺寸下的表现
+                    """,
+                    status="active",
+                    priority="low",
+                    category="界面测试",
+                    tags=["navigation", "ui", "responsive"],
+                    expected_result="""
+                    页面导航功能正常：
+                    - 所有导航链接正确跳转
+                    - 页面内容正确加载
+                    - 浏览器导航功能正常
+                    - 响应式布局正常
+                    """
                 )
             ]
             
             for case in test_cases:
                 db.add(case)
             
+            # 插入一些分类数据
+            categories = [
+                Category(
+                    name="首页功能",
+                    description="首页相关功能测试",
+                    level=0,
+                    sort_order=1,
+                    is_active=True
+                ),
+                Category(
+                    name="测试管理",
+                    description="测试用例管理功能",
+                    level=0,
+                    sort_order=2,
+                    is_active=True
+                ),
+                Category(
+                    name="分类管理",
+                    description="分类管理功能测试",
+                    level=0,
+                    sort_order=3,
+                    is_active=True
+                ),
+                Category(
+                    name="数据导入",
+                    description="Excel导入功能测试",
+                    level=0,
+                    sort_order=4,
+                    is_active=True
+                ),
+                Category(
+                    name="执行管理",
+                    description="测试执行相关功能",
+                    level=0,
+                    sort_order=5,
+                    is_active=True
+                ),
+                Category(
+                    name="批量执行",
+                    description="批量执行功能测试",
+                    level=0,
+                    sort_order=6,
+                    is_active=True
+                ),
+                Category(
+                    name="统计分析",
+                    description="统计信息功能测试",
+                    level=0,
+                    sort_order=7,
+                    is_active=True
+                ),
+                Category(
+                    name="系统配置",
+                    description="系统配置相关功能",
+                    level=0,
+                    sort_order=8,
+                    is_active=True
+                ),
+                Category(
+                    name="界面测试",
+                    description="用户界面相关测试",
+                    level=0,
+                    sort_order=9,
+                    is_active=True
+                )
+            ]
+            
+            for category in categories:
+                db.add(category)
+            
             db.commit()
-            print(f"✅ 成功插入 {len(test_cases)} 条测试数据")
+            print(f"✅ 成功插入 {len(test_cases)} 条测试数据和 {len(categories)} 条分类数据")
         else:
             print(f"✅ 数据库中已有 {existing_count} 条记录")
         
