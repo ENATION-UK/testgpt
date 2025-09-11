@@ -141,7 +141,7 @@ class TestExecutor(BaseExecutor):
             llm = self.multi_llm_service._create_llm_instance(request_config)
             
             # 创建浏览器和Agent
-            browser = Browser(headless=headless, highlight_elements=False)
+            browser = Browser(headless=headless, highlight_elements=False,enable_default_extensions=False)
             event_collector = event_manager.create_collector(test_case.id, execution.id)
             
             agent = Agent(
@@ -198,7 +198,7 @@ class TestExecutor(BaseExecutor):
         agent = None
         try:
             # 创建浏览器和Agent
-            browser = Browser(headless=headless, highlight_elements=False)
+            browser = Browser(headless=headless, highlight_elements=False,enable_default_extensions=False)
             
             config = self.multi_llm_service._load_multi_model_config()
             request_config = await self.multi_llm_service._get_next_available_config_with_wait(config)
