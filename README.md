@@ -74,23 +74,6 @@ npm run dev:frontend
 
 
 ## 🐳 Docker部署
-
-### 构建镜像
-在中国大陆需要先配置代理:
-编辑[docker/build-optimized.sh](docker/build-optimized.sh)中代理部分
-
-```bash
-# 构建所有镜像
-sh docker/build-optimized.sh -a
-
-# 构建前端镜像
-sh docker/build-optimized.sh -f
-
-# 构建后端镜像
-sh docker/build-optimized.sh -b
-```
-
-
 ### 使用Docker Compose
 配置文件[docker/config.env](docker/config.env)中的
 `VITE_API_BASE_URL=http://ip:8000/api`
@@ -98,7 +81,7 @@ sh docker/build-optimized.sh -b
 
 ```bash
 cd docker
-docker-compose up -d
+docker-compose -f docker/docker-aliyun.yml up -d
 ```
 
 
