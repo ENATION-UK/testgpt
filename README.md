@@ -81,7 +81,7 @@ npm run dev:frontend
 
 ```bash
 cd docker
-docker-compose -f docker/docker-aliyun.yml up -d
+docker-compose -f docker-aliyun.yml up -d
 ```
 
 
