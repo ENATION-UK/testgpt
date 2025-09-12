@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM ubuntu:22.04
 
 # 设置代理环境变量
 ARG http_proxy
@@ -15,17 +15,29 @@ RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-
     echo 'Acquire::AllowInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99no-check-valid && \
     echo 'Acquire::AllowDowngradeToInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99no-check-valid
 
-# 清理并重新配置软件源
-RUN rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/* && \
-    echo "deb http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
-    echo "deb http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
-    echo "deb http://security.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list
+# 安装Python 3.11
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    curl \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-venv \
+    python3.11-dev \
+    && ln -s /usr/bin/python3.11 /usr/bin/python \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装pip for Python 3.11
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 \
+    && ln -s /usr/local/bin/pip3.11 /usr/bin/pip
 
     
-# 安装系统依赖 - 合并所有依赖安装到一个命令中
+# 安装系统依赖 - 使用Ubuntu基础镜像，避免包版本冲突
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
+    git \
     fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
     libglib2.0-0 \
     libnspr4 \
@@ -41,7 +53,6 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libasound2 \
     xvfb \
-    # 添加缺少的依赖
     libx11-6 \
     libxcursor1 \
     libxi6 \
