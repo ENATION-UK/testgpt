@@ -122,8 +122,9 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="execute">执行</el-dropdown-item>
-                  <el-dropdown-item command="record">记录</el-dropdown-item>
+                  <el-dropdown-item command="execute-headless">执行（隐藏浏览器界面）</el-dropdown-item>
+                  <el-dropdown-item command="execute-visible">执行（显示浏览器界面）</el-dropdown-item>
+                  <el-dropdown-item command="record" divided>执行记录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -396,8 +397,11 @@ const handleCommand = (command: string, testCase: TestCase) => {
     case 'delete':
       deleteTestCase(testCase)
       break
-    case 'execute':
-      executeTestCase(testCase)
+    case 'execute-headless':
+      executeTestCase(testCase, true)
+      break
+    case 'execute-visible':
+      executeTestCase(testCase, false)
       break
     case 'record':
       viewExecutions(testCase)
@@ -430,10 +434,11 @@ const handleTestCaseUpdated = () => {
   loadTestCases()
 }
 
-const executeTestCase = async (testCase: TestCase) => {
+const executeTestCase = async (testCase: TestCase, headless: boolean = true) => {
   try {
-    await testExecutionApi.execute(testCase.id, true)
-    ElMessage.success('测试用例执行已启动')
+    await testExecutionApi.execute(testCase.id, headless)
+    const mode = headless ? '隐藏浏览器界面' : '显示浏览器界面'
+    ElMessage.success(`测试用例执行已启动 (${mode})`)
   } catch (error) {
     ElMessage.error('执行测试用例失败')
   }
