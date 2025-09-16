@@ -10,8 +10,8 @@ import os
 # 添加项目根目录到Python路径
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from autotest.services.multi_llm_service import MultiLLMService
-from autotest.models import MultiModelConfig, ModelProviderConfig
+from testgpt.services.multi_llm_service import MultiLLMService
+from testgpt.models import MultiModelConfig, ModelProviderConfig
 
 async def test_multi_model_config():
     """测试多模型配置功能"""

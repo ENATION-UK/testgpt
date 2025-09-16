@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 # 设置环境变量使用MySQL
 os.environ["USE_MYSQL"] = "true"
 
-from autotest.database import test_connection, SessionLocal, TestCase
+from testgpt.database import test_connection, SessionLocal, TestCase
 from sqlalchemy import text
 
 def test_mysql_connection():
@@ -90,7 +90,7 @@ def main():
         print("\n💡 建议:")
         print("1. 检查MySQL服务器是否运行在192.168.2.153:3306")
         print("2. 确认用户名root和密码12346是否正确")
-        print("3. 确认autotest数据库是否存在")
+        print("3. 确认testgpt数据库是否存在")
         print("4. 检查网络连接和防火墙设置")
 
 if __name__ == "__main__":

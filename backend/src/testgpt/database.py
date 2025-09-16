@@ -24,7 +24,7 @@ class DatabaseConfig:
     def __init__(self):
         self.config_manager = ConfigManager()
         self.db_dir = self._get_database_directory()
-        self.db_name = os.getenv("DB_NAME", "autotest.db")
+        self.db_name = os.getenv("DB_NAME", "testgpt.db")
         self.db_path = self.db_dir / self.db_name
         
     def _get_database_directory(self) -> pathlib.Path:
@@ -51,7 +51,7 @@ class DatabaseConfig:
 db_config = DatabaseConfig()
 
 # MySQL配置
-MYSQL_DATABASE_URL = "mysql+pymysql://root:12346@192.168.2.153:3306/autotest"
+MYSQL_DATABASE_URL = "mysql+pymysql://root:12346@192.168.2.153:3306/testgpt"
 
 # 根据环境选择数据库
 USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() == "true"

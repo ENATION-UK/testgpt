@@ -6,7 +6,7 @@ import asyncio
 import pytest
 import time
 from unittest.mock import Mock, AsyncMock, patch
-from src.autotest.test_executor import task_context, BatchTestExecutor, TestExecutor
+from src.testgpt.test_executor import task_context, BatchTestExecutor, TestExecutor
 
 
 class TestTaskContext:

@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from autotest.database import test_connection, SessionLocal, TestCase
+from testgpt.database import test_connection, SessionLocal, TestCase
 from sqlalchemy import text
 
 def test_database_connection():

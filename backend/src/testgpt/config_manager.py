@@ -9,7 +9,7 @@ from datetime import datetime
 class ConfigManager:
     """配置管理器，统一管理配置文件的存储位置"""
     
-    def __init__(self, app_name: str = "autotest"):
+    def __init__(self, app_name: str = "testgpt"):
         self.app_name = app_name
         self.data_dir = self.get_data_directory()
         self.ensure_data_directory()
@@ -92,7 +92,7 @@ class ConfigManager:
     
     def get_database_path(self) -> Path:
         """获取数据库文件路径"""
-        return self.data_dir / "autotest.db"
+        return self.data_dir / "testgpt.db"
     
     def get_multi_model_config_path(self) -> Path:
         """获取多模型配置文件路径"""

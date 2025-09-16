@@ -63,7 +63,7 @@ def test_browser_agent_direct():
     
     async def run_test():
         try:
-            from src.autotest.browser_agent import BrowserAgent
+            from src.testgpt.browser_agent import BrowserAgent
             
             # 创建浏览器代理
             agent = BrowserAgent(

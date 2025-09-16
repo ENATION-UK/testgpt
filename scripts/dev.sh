@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 开发环境启动脚本
-echo "🚀 启动 AutoTest 开发环境..."
+echo "🚀 启动 TestGPT 开发环境..."
 
 # 检查是否安装了依赖
 if [ ! -d "frontend/node_modules" ]; then

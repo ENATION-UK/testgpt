@@ -89,5 +89,5 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 echo "⏳ 等待 Xvfb 启动..."
 sleep 2
 
-echo "🎯 启动 AutoTest API 服务..."
+echo "🎯 启动 TestGPT API 服务..."
 python run.py

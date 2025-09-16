@@ -1,6 +1,6 @@
 # Tests Directory
 
-This directory contains all test files for the autotest project.
+This directory contains all test files for the testgpt project.
 
 ## Test Files
 

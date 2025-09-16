@@ -107,7 +107,7 @@ def demo_model_settings():
         import sys
         import os
         sys.path.append(os.path.join(os.path.dirname(__file__), "backend", "src"))
-        from autotest.config_manager import ConfigManager
+        from testgpt.config_manager import ConfigManager
         
         config_manager = ConfigManager()
         config_path = config_manager.get_multi_model_config_path()

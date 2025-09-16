@@ -14,13 +14,13 @@ services:
       - DISPLAY=:99
       - DOCKER_ENV=true
       - DATA_DIR=/app/data
-      - DB_NAME=autotest.db
+      - DB_NAME=testgpt.db
     shm_size: '2gb'
     volumes:
       - ../backend:/app
       - ./data:/app/data
     networks:
-      - autotest-network
+      - testgpt-network
 
   frontend:
     image: registry.cn-hangzhou.aliyuncs.com/itbuilder/tester-frontend:v1.0.0
@@ -32,10 +32,10 @@ services:
     depends_on:
       - backend
     networks:
-      - autotest-network
+      - testgpt-network
 
 networks:
-  autotest-network:
+  testgpt-network:
     driver: bridge
 
 volumes:

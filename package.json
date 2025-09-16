@@ -1,7 +1,7 @@
 {
-  "name": "autotest-fullstack",
+  "name": "testgpt-fullstack",
   "version": "1.0.0",
-  "description": "AutoTest with Vue UI - Web自动化测试工具",
+  "description": "TestGPT with Vue UI - Web自动化测试工具",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && uv run run.py",
@@ -13,7 +13,7 @@
     "setup": "npm run install:all && cd backend && playwright install chromium"
   },
   "keywords": [
-    "autotest",
+    "testgpt",
     "vue",
     "python",
     "fastapi",

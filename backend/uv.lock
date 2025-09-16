@@ -169,57 +169,6 @@ wheels = [
 ]
 
 [[package]]
-name = "autotest"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "browser-use" },
-    { name = "fastapi" },
-    { name = "langchain-core" },
-    { name = "openpyxl" },
-    { name = "pandas" },
-    { name = "playwright" },
-    { name = "pymysql" },
-    { name = "python-dotenv" },
-    { name = "python-socks" },
-    { name = "requests" },
-    { name = "socksio" },
-    { name = "sqlalchemy" },
-    { name = "uvicorn", extra = ["standard"] },
-    { name = "websockets" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "browser-use", git = "https://gitee.com/enation-inc/browser-use-plus.git?rev=0.7.7.1-fix" },
-    { name = "fastapi", specifier = ">=0.104.0" },
-    { name = "langchain-core", specifier = ">=0.1.0" },
-    { name = "openpyxl", specifier = ">=3.1.0" },
-    { name = "pandas", specifier = ">=2.0.0" },
-    { name = "playwright", specifier = ">=1.54.0" },
-    { name = "pymysql", specifier = ">=1.1.1" },
-    { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "python-socks", specifier = ">=2.7.2" },
-    { name = "requests", specifier = ">=2.32.4" },
-    { name = "socksio", specifier = ">=1.0.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.42" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
-    { name = "websockets", specifier = ">=12.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", specifier = ">=0.21.0" },
-]
-
-[[package]]
 name = "backoff"
 version = "2.2.1"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
@@ -4964,6 +4913,57 @@ source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/a3/4d/6a19536c50b849338fcbe9290d562b52cbdcf30d8963d3588a68a4107df1/tenacity-8.5.0.tar.gz", hash = "sha256:8bc6c0c8a09b31e6cad13c47afbed1a567518250a9a171418582ed8d9c20ca78" }
 wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl", hash = "sha256:b594c2a5945830c267ce6b79a166228323ed52718f30302c1359836112346687" },
+]
+
+[[package]]
+name = "testgpt"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "browser-use" },
+    { name = "fastapi" },
+    { name = "langchain-core" },
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "playwright" },
+    { name = "pymysql" },
+    { name = "python-dotenv" },
+    { name = "python-socks" },
+    { name = "requests" },
+    { name = "socksio" },
+    { name = "sqlalchemy" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "browser-use", git = "https://gitee.com/enation-inc/browser-use-plus.git?rev=0.7.7.1-fix" },
+    { name = "fastapi", specifier = ">=0.104.0" },
+    { name = "langchain-core", specifier = ">=0.1.0" },
+    { name = "openpyxl", specifier = ">=3.1.0" },
+    { name = "pandas", specifier = ">=2.0.0" },
+    { name = "playwright", specifier = ">=1.54.0" },
+    { name = "pymysql", specifier = ">=1.1.1" },
+    { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "python-socks", specifier = ">=2.7.2" },
+    { name = "requests", specifier = ">=2.32.4" },
+    { name = "socksio", specifier = ">=1.0.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.42" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
+    { name = "websockets", specifier = ">=12.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
 ]
 
 [[package]]

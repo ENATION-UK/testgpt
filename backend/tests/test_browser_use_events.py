@@ -27,7 +27,7 @@ async def test_event_collection():
     
     try:
         # 动态导入模块
-        from autotest.browser_event_collector import event_manager
+        from testgpt.browser_event_collector import event_manager
         
         # 创建测试用例ID和执行ID
         test_case_id = 1
@@ -103,7 +103,7 @@ async def test_websocket_integration():
     
     try:
         # 导入WebSocket管理器
-        from autotest.websocket_manager import websocket_manager
+        from testgpt.websocket_manager import websocket_manager
         
         # 验证WebSocket管理器存在
         assert websocket_manager is not None, "WebSocket管理器未正确初始化"

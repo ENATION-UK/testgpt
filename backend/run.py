@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 启动脚本
-用于启动AutoTest API服务
+用于启动TestGPT API服务
 """
 
 import uvicorn
@@ -15,7 +15,7 @@ sys.path.insert(0, str(src_path))
 
 def main():
     """主函数"""
-    print("🚀 启动AutoTest API服务...")
+    print("🚀 启动TestGPT API服务...")
 
     os.environ["ANONYMIZED_TELEMETRY"] = "false"
     os.environ["BROWSER_USE_CLOUD_SYNC"] = "false"
@@ -32,7 +32,7 @@ def main():
     
     # 在启动服务前输出配置信息
     try:
-        from autotest.config_manager import ConfigManager
+        from testgpt.config_manager import ConfigManager
         print("\n📁 配置管理器路径信息:")
         config_manager = ConfigManager()
         print(f"   数据目录: {config_manager.data_dir}")
@@ -49,7 +49,7 @@ def main():
     
     # 启动服务
     uvicorn.run(
-        "autotest.main:app",
+        "testgpt.main:app",
         host=host,
         port=port,
         reload=reload,

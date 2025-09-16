@@ -72,7 +72,7 @@ def test_browser_agent_with_config():
     print("\n🧪 测试BrowserAgent使用配置文件...")
     
     try:
-        from backend.src.autotest.browser_agent import BrowserAgent
+        from backend.src.testgpt.browser_agent import BrowserAgent
         
         # 创建代理实例（会自动读取配置文件）
         agent = BrowserAgent()
@@ -94,7 +94,7 @@ def test_test_executor_with_config():
     print("\n🧪 测试TestExecutor使用配置文件...")
     
     try:
-        from backend.src.autotest.test_executor import TestExecutor
+        from backend.src.testgpt.test_executor import TestExecutor
         
         # 创建执行器实例（会自动读取配置文件）
         executor = TestExecutor()

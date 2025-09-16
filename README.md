@@ -1,4 +1,4 @@
-# AutoTest - Web自动化测试工具
+# TestGPT - Web自动化测试工具
 
 基于Browser Use的智能Web自动化测试工具，支持语义化测试用例编写和详细的测试结果记录。
 
@@ -32,8 +32,8 @@
 
 ### 克隆项目
 ```bash
-git clone https://gitee.com/enation-inc/autotest.git
-cd autotest
+git clone https://gitee.com/enation-inc/testgpt.git
+cd testgpt
 ```
 
 #### 安装前端依赖

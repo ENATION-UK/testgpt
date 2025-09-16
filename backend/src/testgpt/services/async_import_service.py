@@ -88,7 +88,7 @@ class AsyncImportService:
     async def _save_uploaded_file(self, file: UploadFile) -> Path:
         """保存上传的文件到临时目录"""
         # 创建临时目录
-        temp_dir = Path(tempfile.gettempdir()) / "autotest_imports"
+        temp_dir = Path(tempfile.gettempdir()) / "testgpt_imports"
         temp_dir.mkdir(exist_ok=True)
         
         # 生成唯一文件名

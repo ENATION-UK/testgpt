@@ -71,7 +71,7 @@ class ExcelTemplateService:
         """生成标准Excel模版文件"""
         try:
             # 创建临时文件
-            temp_dir = Path(tempfile.gettempdir()) / "autotest_templates"
+            temp_dir = Path(tempfile.gettempdir()) / "testgpt_templates"
             temp_dir.mkdir(exist_ok=True)
             template_path = temp_dir / "测试用例导入标准模版.xlsx"
             

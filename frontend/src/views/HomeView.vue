@@ -5,7 +5,7 @@
         <el-card class="welcome-card">
           <template #header>
             <div class="card-header">
-              <h2>欢迎使用 AutoTest</h2>
+              <h2>欢迎使用 TestGPT</h2>
             </div>
           </template>
           <div class="welcome-content">

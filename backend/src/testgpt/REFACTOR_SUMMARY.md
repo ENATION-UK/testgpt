@@ -9,13 +9,13 @@
 
 **重构前：**
 ```
-backend/src/autotest/
+backend/src/testgpt/
 ├── test_executor.py (2147行)
 ```
 
 **重构后：**
 ```
-backend/src/autotest/
+backend/src/testgpt/
 ├── test_executor.py (38行) - 主入口文件
 ├── core/
 │   ├── __init__.py
@@ -124,15 +124,15 @@ backend/src/autotest/
 
 ```python
 # 单个测试执行
-from autotest.test_executor import execute_single_test
+from testgpt.test_executor import execute_single_test
 result = await execute_single_test(test_case_id=1)
 
 # 批量测试执行
-from autotest.test_executor import execute_batch_tests
+from testgpt.test_executor import execute_batch_tests
 result = await execute_batch_tests([1, 2, 3])
 
 # 直接使用执行器
-from autotest.test_executor import TestExecutor
+from testgpt.test_executor import TestExecutor
 executor = TestExecutor()
 result = await executor.execute_test_case(1)
 ```

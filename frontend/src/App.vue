@@ -5,7 +5,7 @@
         <div class="header-content">
           <h1 class="logo">
             <el-icon><Monitor /></el-icon>
-            AutoTest
+            TestGPT
           </h1>
           <el-menu
             mode="horizontal"
@@ -58,7 +58,7 @@
       </el-main>
       
       <el-footer class="footer">
-        <p>&copy; 2024 AutoTest. All rights reserved.</p>
+        <p>&copy; 2024 TestGPT. All rights reserved.</p>
       </el-footer>
     </el-container>
   </div>
