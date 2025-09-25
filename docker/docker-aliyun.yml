@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   backend:
-    image: registry.cn-hangzhou.aliyuncs.com/itbuilder/tester-backend:v1.0.0
-    platform: linux/amd64  # 添加这行
+    image: registry.cn-hangzhou.aliyuncs.com/itbuilder/testgpt-backend:v1.0.0
+    platform: linux/amd64 
     ports:
       - "8000:8000"
     environment:
@@ -23,8 +23,8 @@ services:
       - testgpt-network
 
   frontend:
-    image: registry.cn-hangzhou.aliyuncs.com/itbuilder/tester-frontend:v1.0.0
-    platform: linux/amd64  # 添加这行
+    image: registry.cn-hangzhou.aliyuncs.com/itbuilder/testgpt-frontend:v1.0.0
+    platform: linux/amd64  
     ports:
       - "3000:3000"
     env_file:
