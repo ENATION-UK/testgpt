@@ -59,8 +59,8 @@ async def get_test_cases(
     # 获取总数
     total = query.count()
     
-    # 应用分页
-    test_cases = query.offset(skip).limit(limit).all()
+    # 按创建时间倒序排列，然后应用分页
+    test_cases = query.order_by(TestCase.created_at.desc()).offset(skip).limit(limit).all()
     
     return TestCasesResponse(
         test_cases=test_cases,
