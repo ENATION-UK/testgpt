@@ -35,11 +35,6 @@ const router = createRouter({
       component: () => import('../views/ExecutionDetailView.vue')
     },
     {
-      path: '/model-settings',
-      name: 'model-settings',
-      component: () => import('../views/ModelSettingsView.vue')
-    },
-    {
       path: '/multi-model-settings',
       name: 'multi-model-settings',
       component: () => import('../views/MultiModelSettingsView.vue')

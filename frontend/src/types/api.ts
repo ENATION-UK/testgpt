@@ -121,25 +121,6 @@ export interface BatchExecuteRequest {
   headless?: boolean
 }
 
-// 模型配置相关类型
-export interface ModelConfig {
-  model_type: string
-  api_key: string
-  base_url?: string
-  model: string
-  temperature: number
-  max_tokens?: number
-}
-
-export interface ModelConfigResponse extends ModelConfig {
-  is_valid: boolean
-}
-
-export interface TestConfigResult {
-  success: boolean
-  message: string
-}
-
 // 提示词配置相关类型
 export interface PromptConfig {
   custom_prompt: string

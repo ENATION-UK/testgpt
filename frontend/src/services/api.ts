@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { TestCase, TestExecution, Statistics, ModelConfig, ModelConfigResponse, TestConfigResult, PromptConfig, PromptConfigResponse, BatchExecution, Category, CategoryCreate, CategoryUpdate, ImportTask, ImportTaskCreate, ImportTaskStatus, ImportTaskListResponse } from '@/types/api'
+import type { TestCase, TestExecution, Statistics, PromptConfig, PromptConfigResponse, BatchExecution, Category, CategoryCreate, CategoryUpdate, ImportTask, ImportTaskCreate, ImportTaskStatus, ImportTaskListResponse } from '@/types/api'
 
 // 动态获取API基础URL
 function getApiBaseUrl(): string {
@@ -201,18 +201,6 @@ export const categoryApi = {
   // 获取分类下的测试用例ID列表
   getTestCases: (id: number, include_children?: boolean) => 
     api.get<{ category_id: number; include_children: boolean; test_case_ids: number[]; count: number }>(`/categories/${id}/test-cases/`, { params: { include_children } }) as unknown as Promise<{ category_id: number; include_children: boolean; test_case_ids: number[]; count: number }>
-}
-
-// 模型配置相关API
-export const modelConfigApi = {
-  // 获取模型配置
-  getConfig: () => api.get<ModelConfigResponse>('/model-config/') as unknown as Promise<ModelConfigResponse>,
-  
-  // 更新模型配置
-  updateConfig: (config: ModelConfig) => api.put<ModelConfigResponse>('/model-config/', config) as unknown as Promise<ModelConfigResponse>,
-  
-  // 测试模型配置
-  testConfig: (config: ModelConfig) => api.post<TestConfigResult>('/model-config/test/', config) as unknown as Promise<TestConfigResult>
 }
 
 // 提示词配置相关API

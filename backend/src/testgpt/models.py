@@ -151,26 +151,6 @@ class TestStatistics(BaseModel):
     failed_executions: int
     success_rate: float
 
-# 模型配置相关模型
-class ModelConfig(BaseModel):
-    """模型配置"""
-    model_type: str = Field(description="模型类型: deepseek, openai, doubao")
-    api_key: str = Field(description="API密钥")
-    base_url: Optional[str] = Field(default=None, description="API基础URL")
-    model: str = Field(description="模型名称")
-    temperature: float = Field(default=0.7, description="温度参数")
-    max_tokens: Optional[int] = Field(default=None, description="最大token数")
-
-class ModelConfigResponse(BaseModel):
-    """模型配置响应"""
-    model_type: str
-    api_key: str
-    base_url: Optional[str] = None
-    model: str
-    temperature: float
-    max_tokens: Optional[int] = None
-    is_valid: bool = Field(description="配置是否有效")
-
 # 提示词配置相关模型
 class PromptConfig(BaseModel):
     """提示词配置"""

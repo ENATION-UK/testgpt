@@ -10,7 +10,7 @@ This directory contains all test files for the testgpt project.
 - `test_browser_use.py` - 浏览器使用测试
 - `test_database.py` - 数据库测试
 - `test_execution.py` - 执行测试
-- `test_model_config.py` - 模型配置测试
+- `test_multi_model_config.py` - 多模型配置测试
 - `test_mysql_connection.py` - MySQL连接测试
 - `test_prompt_settings.py` - 提示设置测试
 - `test_setup.py` - 设置测试
