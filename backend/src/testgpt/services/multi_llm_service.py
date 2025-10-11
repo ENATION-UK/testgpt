@@ -41,14 +41,50 @@ class MultiLLMService:
                     config_data = json.load(f)
                     return MultiModelConfig(**config_data)
             else:
-                # 返回默认配置
                 return self._get_default_config()
         except Exception as e:
             self.logger.error(f"加载多模型配置失败: {e}")
             return self._get_default_config()
     
+    def _is_valid_api_key(self, key: str) -> bool:
+        """验证API key是否有效（不是占位符）"""
+        if not key or not key.strip():
+            return False
+        
+        # 常见的占位符文本
+        placeholders = [
+            "your_api_key",
+            "你的api密钥", 
+            "your-api-key",
+            "api_key_here",
+            "replace_me",
+            "placeholder",
+            "xxx",
+            "sk-xxx",
+            "test",
+        ]
+        
+        key_lower = key.lower().strip()
+        
+        # 检查是否是占位符
+        for placeholder in placeholders:
+            if placeholder in key_lower:
+                return False
+        
+        # API key 长度检查（真实的API key通常较长）
+        if len(key) < 20:
+            return False
+        
+        return True
+    
     def _get_default_config(self) -> MultiModelConfig:
         """获取默认配置"""
+        api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        
+        # 如果是无效的API key，使用空字符串替代
+        if not self._is_valid_api_key(api_key):
+            api_key = ""
+        
         return MultiModelConfig(
             providers=[
                 ModelProviderConfig(
@@ -59,7 +95,7 @@ class MultiLLMService:
                     model="deepseek-chat",
                     temperature=0.7,
                     max_tokens=None,
-                    api_keys=[os.getenv("DEEPSEEK_API_KEY", "")],
+                    api_keys=[api_key],
                     rate_limit=2,
                     is_active=True,
                     current_key_index=0
@@ -234,14 +270,22 @@ class MultiLLMService:
         config = self._load_multi_model_config()
         
         total_providers = len([provider for provider in config.providers if provider.is_active])
-        total_api_keys = sum(len(provider.api_keys) for provider in config.providers if provider.is_active)
+        
+        # 只计算有效的 API key（非空且不是占位符）
+        total_api_keys = 0
+        for provider in config.providers:
+            if provider.is_active:
+                valid_keys = [key for key in provider.api_keys if self._is_valid_api_key(key)]
+                total_api_keys += len(valid_keys)
+        
+        is_valid = total_providers > 0 and total_api_keys > 0
         
         return MultiModelConfigResponse(
             providers=config.providers,
             current_provider_index=config.current_provider_index,
             total_providers=total_providers,
             total_api_keys=total_api_keys,
-            is_valid=total_providers > 0 and total_api_keys > 0
+            is_valid=is_valid
         )
     
     async def update_multi_model_config(self, config: MultiModelConfig) -> MultiModelConfigResponse:
@@ -255,9 +299,13 @@ class MultiLLMService:
             if not active_providers:
                 raise ValueError("至少需要有一个启用的模型提供商")
             
-            total_api_keys = sum(len(provider.api_keys) for provider in active_providers)
+            # 只计算有效的 API key（使用 _is_valid_api_key 验证）
+            total_api_keys = sum(
+                len([key for key in provider.api_keys if self._is_valid_api_key(key)])
+                for provider in active_providers
+            )
             if total_api_keys == 0:
-                raise ValueError("至少需要配置一个API key")
+                raise ValueError("至少需要配置一个有效的API key（非空且长度至少20字符，不能是占位符）")
             
             # 验证每个提供商的配置
             for provider in config.providers:
@@ -265,8 +313,11 @@ class MultiLLMService:
                     raise ValueError("提供商ID不能为空")
                 if not provider.provider_name:
                     raise ValueError("提供商名称不能为空")
-                if provider.is_active and not provider.api_keys:
-                    raise ValueError(f"启用的提供商 {provider.provider_name} 必须配置至少一个API key")
+                # 验证启用的提供商至少有一个有效的 API key
+                if provider.is_active:
+                    valid_keys = [key for key in provider.api_keys if self._is_valid_api_key(key)]
+                    if not valid_keys:
+                        raise ValueError(f"启用的提供商 {provider.provider_name} 必须配置至少一个有效的API key（非空且长度至少20字符，不能是占位符）")
             
             # 保存配置
             self._save_multi_model_config(config)
@@ -287,9 +338,15 @@ class MultiLLMService:
         config = self._load_multi_model_config()
         active_providers = [provider for provider in config.providers if provider.is_active]
         
+        # 只计算有效的 API key（使用 _is_valid_api_key 验证）
+        total_api_keys = sum(
+            len([key for key in provider.api_keys if self._is_valid_api_key(key)])
+            for provider in active_providers
+        )
+        
         status = {
             "total_providers": len(active_providers),
-            "total_api_keys": sum(len(provider.api_keys) for provider in active_providers),
+            "total_api_keys": total_api_keys,
             "current_provider_index": config.current_provider_index,
             "provider_details": []
         }
@@ -299,11 +356,14 @@ class MultiLLMService:
             request_count = self._request_counters.get(provider_key, 0)
             last_request = self._last_request_time.get(provider_key, 0)
             
+            # 只计算有效的 API key（使用 _is_valid_api_key 验证）
+            valid_key_count = len([key for key in provider.api_keys if self._is_valid_api_key(key)])
+            
             status["provider_details"].append({
                 "provider_id": provider.provider_id,
                 "provider_name": provider.provider_name,
                 "model_type": provider.model_type,
-                "api_key_count": len(provider.api_keys),
+                "api_key_count": valid_key_count,
                 "rate_limit": provider.rate_limit,
                 "current_requests": request_count,
                 "last_request_time": last_request,

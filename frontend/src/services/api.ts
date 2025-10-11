@@ -35,7 +35,7 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    console.log('API Request:', config.method?.toUpperCase(), config.url, 'Base URL:', config.baseURL)
+    // console.log('API Request:', config.method?.toUpperCase(), config.url, 'Base URL:', config.baseURL)
     return config
   },
   (error) => {

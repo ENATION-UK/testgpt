@@ -239,7 +239,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, ArrowDown, Upload, Operation, Folder, InfoFilled, Delete } from '@element-plus/icons-vue'
-import { testCaseApi, testExecutionApi, batchExecutionApi, categoryApi } from '@/services/api'
+import { testCaseApi, testExecutionApi, batchExecutionApi, categoryApi, multiModelConfigApi } from '@/services/api'
 import type { TestCase, Category } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
 import ViewTestCaseDialog from '@/components/ViewTestCaseDialog.vue'
@@ -434,7 +434,46 @@ const handleTestCaseUpdated = () => {
   loadTestCases()
 }
 
+// 检查大模型配置是否有效
+const checkLLMConfiguration = async (): Promise<boolean> => {
+  try {
+    const config = await multiModelConfigApi.getConfig()
+    return config.is_valid
+  } catch (error) {
+    console.error('检查大模型配置失败:', error)
+    return false
+  }
+}
+
+// 提示用户配置大模型
+const promptLLMConfiguration = async (): Promise<boolean> => {
+  try {
+    await ElMessageBox.confirm(
+      '请先配置大模型才能执行测试用例，请前往【多模型配置】页面进行配置',
+      '未配置大模型',
+      {
+        confirmButtonText: '前往配置',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    // 用户点击确定，跳转到配置页面
+    router.push('/multi-model-settings')
+    return false
+  } catch (error) {
+    // 用户点击取消
+    return false
+  }
+}
+
 const executeTestCase = async (testCase: TestCase, headless: boolean = true) => {
+  // 检查大模型配置
+  const isConfigValid = await checkLLMConfiguration()
+  if (!isConfigValid) {
+    await promptLLMConfiguration()
+    return
+  }
+  
   try {
     await testExecutionApi.execute(testCase.id, headless)
     const mode = headless ? '隐藏浏览器界面' : '显示浏览器界面'
@@ -549,6 +588,13 @@ const closeBatchExecuteDialog = () => {
 }
 
 const handleBatchExecute = async () => {
+  // 检查大模型配置
+  const isConfigValid = await checkLLMConfiguration()
+  if (!isConfigValid) {
+    await promptLLMConfiguration()
+    return
+  }
+  
   let testCaseIds: number[] = []
   
   if (batchExecuteForm.value.executionType === 'manual') {
