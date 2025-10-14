@@ -4,7 +4,7 @@
       <h2>{{ pageTitle }}</h2>
       <el-button v-if="testCaseId" @click="goBack" type="primary">
         <el-icon><ArrowLeft /></el-icon>
-        返回测试用例
+        {{ $t('execution.backToTestCase') }}
       </el-button>
     </div>
 
@@ -14,16 +14,16 @@
         :data="executions"
         style="width: 100%"
       >
-        <el-table-column prop="execution_name" label="执行名称" min-width="200" />
-        <el-table-column prop="test_case_id" label="测试用例ID" width="120" />
-        <el-table-column prop="overall_status" label="状态" width="100">
+        <el-table-column prop="execution_name" :label="$t('execution.executionName')" min-width="200" />
+        <el-table-column prop="test_case_id" :label="$t('execution.testCaseId')" width="120" />
+        <el-table-column prop="overall_status" :label="$t('common.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.overall_status)">
               {{ row.overall_status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="步骤统计" width="150">
+        <el-table-column :label="$t('execution.stepStats')" width="150">
           <template #default="{ row }">
             <div class="step-stats">
               <span class="passed">{{ row.passed_steps }}</span>
@@ -32,19 +32,19 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="total_duration" label="耗时" width="100">
+        <el-table-column prop="total_duration" :label="$t('execution.duration')" width="100">
           <template #default="{ row }">
             {{ formatDuration(row.total_duration) }}
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
+        <el-table-column prop="created_at" :label="$t('common.created_at')" width="180">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column :label="$t('common.operation')" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="viewExecution(row)">查看详情</el-button>
+            <el-button size="small" @click="viewExecution(row)">{{ $t('execution.viewDetails') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -55,10 +55,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { testExecutionApi } from '@/services/api'
 import type { TestExecution } from '@/types/api'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -71,7 +74,7 @@ const testCaseId = computed(() => {
 })
 
 const pageTitle = computed(() => {
-  return testCaseId.value ? `测试用例 ${testCaseId.value} 的执行记录` : '执行记录'
+  return testCaseId.value ? t('execution.testCaseExecutions', { id: testCaseId.value }) : t('execution.title')
 })
 
 const loadExecutions = async () => {
@@ -85,7 +88,7 @@ const loadExecutions = async () => {
       executions.value = data
     }
   } catch (error) {
-    ElMessage.error('加载执行记录失败')
+    ElMessage.error(t('execution.messages.loadFailed'))
   } finally {
     loading.value = false
   }

@@ -1,23 +1,23 @@
 <template>
   <div class="test-cases">
     <div class="page-header">
-      <h2>测试用例管理</h2>
+      <h2>{{ $t('testCase.title') }}</h2>
       <div class="header-actions">
         <el-button type="info" @click="goToCategories">
           <el-icon><Folder /></el-icon>
-          分类管理
+          {{ $t('testCase.categoryManagement') }}
         </el-button>
         <el-button type="success" @click="goToImportPage">
           <el-icon><Upload /></el-icon>
-          导入Excel
+          {{ $t('testCase.importExcel') }}
         </el-button>
         <el-button type="primary" @click="showCreateDialog = true">
           <el-icon><Plus /></el-icon>
-          创建测试用例
+          {{ $t('testCase.create') }}
         </el-button>
         <el-button type="warning" @click="showBatchExecuteDialog = true">
           <el-icon><Operation /></el-icon>
-          批量执行
+          {{ $t('testCase.batchExecute') }}
         </el-button>
         <el-button 
           type="danger" 
@@ -25,7 +25,7 @@
           @click="handleBatchDelete"
         >
           <el-icon><Delete /></el-icon>
-          批量删除 ({{ selectedTestCases.length }})
+          {{ $t('testCase.batchDelete') }} ({{ selectedTestCases.length }})
         </el-button>
       </div>
     </div>
@@ -34,35 +34,35 @@
     <el-card style="margin-bottom: 20px;">
       <div class="filter-section">
         <el-form :model="filterForm" inline>
-          <el-form-item label="分类筛选">
+          <el-form-item :label="$t('testCase.categoryId')">
             <el-cascader
               v-model="filterForm.category_id"
               :options="categoryOptions"
               :props="cascaderProps"
-              placeholder="请选择分类"
+              :placeholder="$t('testCase.placeholder.category')"
               clearable
               style="width: 300px"
               @change="handleCategoryChange"
             />
           </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="filterForm.status" placeholder="请选择状态" clearable>
-              <el-option label="激活" value="active" />
-              <el-option label="非激活" value="inactive" />
-              <el-option label="草稿" value="draft" />
+          <el-form-item :label="$t('common.status')">
+            <el-select v-model="filterForm.status" :placeholder="$t('testCase.placeholder.status')" clearable>
+              <el-option :label="$t('common.active')" value="active" />
+              <el-option :label="$t('common.inactive')" value="inactive" />
+              <el-option :label="$t('common.draft')" value="draft" />
             </el-select>
           </el-form-item>
-          <el-form-item label="优先级">
-            <el-select v-model="filterForm.priority" placeholder="请选择优先级" clearable>
-              <el-option label="低" value="low" />
-              <el-option label="中" value="medium" />
-              <el-option label="高" value="high" />
-              <el-option label="紧急" value="critical" />
+          <el-form-item :label="$t('common.priority')">
+            <el-select v-model="filterForm.priority" :placeholder="$t('testCase.placeholder.priority')" clearable>
+              <el-option :label="$t('common.low')" value="low" />
+              <el-option :label="$t('common.medium')" value="medium" />
+              <el-option :label="$t('common.high')" value="high" />
+              <el-option :label="$t('common.critical')" value="critical" />
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="applyFilters">筛选</el-button>
-            <el-button @click="resetFilters">重置</el-button>
+            <el-button type="primary" @click="applyFilters">{{ $t('common.filter') }}</el-button>
+            <el-button @click="resetFilters">{{ $t('common.reset') }}</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -76,55 +76,55 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="name" label="名称" min-width="200" />
-        <el-table-column label="分类" width="120">
+        <el-table-column prop="name" :label="$t('common.name')" min-width="200" />
+        <el-table-column :label="$t('common.category')" width="120">
           <template #default="{ row }">
             {{ getCategoryName(row.category_id) }}
           </template>
         </el-table-column>
-        <el-table-column prop="priority" label="优先级" width="100">
+        <el-table-column prop="priority" :label="$t('common.priority')" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority)">
               {{ getPriorityLabel(row.priority) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" :label="$t('common.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
               {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
+        <el-table-column prop="created_at" :label="$t('common.created_at')" width="180">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column :label="$t('common.operation')" width="200" fixed="right">
           <template #default="{ row }">
             <el-dropdown @command="(command: string) => handleCommand(command, row)" style="margin-right: 8px;">
               <el-button size="small" type="primary">
-                编辑<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                {{ $t('common.edit') }}<el-icon class="el-icon--right"><arrow-down /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="view">查看</el-dropdown-item>
-                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                  <el-dropdown-item command="view">{{ $t('common.view') }}</el-dropdown-item>
+                  <el-dropdown-item command="edit">{{ $t('common.edit') }}</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>{{ $t('common.delete') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
             
             <el-dropdown @command="(command: string) => handleCommand(command, row)">
               <el-button size="small" type="success">
-                执行<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                {{ $t('common.execute') }}<el-icon class="el-icon--right"><arrow-down /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="execute-headless">执行（隐藏浏览器界面）</el-dropdown-item>
-                  <el-dropdown-item command="execute-visible">执行（显示浏览器界面）</el-dropdown-item>
-                  <el-dropdown-item command="record" divided>执行记录</el-dropdown-item>
+                  <el-dropdown-item command="execute-headless">{{ $t('common.executeHeadless') }}</el-dropdown-item>
+                  <el-dropdown-item command="execute-visible">{{ $t('common.executeVisible') }}</el-dropdown-item>
+                  <el-dropdown-item command="record" divided>{{ $t('common.executionRecord') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -237,6 +237,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, ArrowDown, Upload, Operation, Folder, InfoFilled, Delete } from '@element-plus/icons-vue'
 import { testCaseApi, testExecutionApi, batchExecutionApi, categoryApi, multiModelConfigApi } from '@/services/api'
@@ -244,6 +245,8 @@ import type { TestCase, Category } from '@/types/api'
 import CreateTestCaseDialog from '@/components/CreateTestCaseDialog.vue'
 import ViewTestCaseDialog from '@/components/ViewTestCaseDialog.vue'
 import EditTestCaseDialog from '@/components/EditTestCaseDialog.vue'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const loading = ref(false)

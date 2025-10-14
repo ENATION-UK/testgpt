@@ -1,38 +1,38 @@
 <template>
     <el-dialog
       v-model="visible"
-      title="测试用例详情"
+      :title="$t('testCase.view')"
       width="700px"
       :before-close="handleClose"
     >
       <div v-if="testCase" class="test-case-details">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="名称">
+          <el-descriptions-item :label="$t('common.name')">
             {{ testCase.name }}
           </el-descriptions-item>
-          <el-descriptions-item label="分类">
+          <el-descriptions-item :label="$t('common.category')">
             {{ testCase.category }}
           </el-descriptions-item>
-          <el-descriptions-item label="优先级">
+          <el-descriptions-item :label="$t('common.priority')">
             <el-tag :type="getPriorityType(testCase.priority)">
               {{ getPriorityLabel(testCase.priority) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="状态">
+          <el-descriptions-item :label="$t('common.status')">
             <el-tag :type="getStatusType(testCase.status)">
               {{ getStatusLabel(testCase.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间" :span="2">
+          <el-descriptions-item :label="$t('common.created_at')" :span="2">
             {{ testCase.created_at ? formatDate(testCase.created_at) : '' }}
           </el-descriptions-item>
-          <el-descriptions-item label="任务内容" :span="2">
-            <div class="task-content">{{ testCase.task_content || '暂无任务内容' }}</div>
+          <el-descriptions-item :label="$t('testCase.taskContent')" :span="2">
+            <div class="task-content">{{ testCase.task_content || $t('testCase.noTaskContent') }}</div>
           </el-descriptions-item>
-          <el-descriptions-item label="预期结果" :span="2">
-            {{ testCase.expected_result || '暂无预期结果' }}
+          <el-descriptions-item :label="$t('testCase.expectedResult')" :span="2">
+            {{ testCase.expected_result || $t('testCase.noExpectedResult') }}
           </el-descriptions-item>
-          <el-descriptions-item label="标签" :span="2">
+          <el-descriptions-item :label="$t('testCase.tags')" :span="2">
             <div v-if="testCase.tags && testCase.tags.length > 0">
               <el-tag
                 v-for="tag in testCase.tags"
@@ -42,15 +42,15 @@
                 {{ tag }}
               </el-tag>
             </div>
-            <span v-else class="no-tags">暂无标签</span>
+            <span v-else class="no-tags">{{ $t('testCase.noTags') }}</span>
           </el-descriptions-item>
         </el-descriptions>
       </div>
   
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleClose">关闭</el-button>
-          <el-button type="primary" @click="handleEdit">编辑</el-button>
+          <el-button @click="handleClose">{{ $t('common.close') }}</el-button>
+          <el-button type="primary" @click="handleEdit">{{ $t('common.edit') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -58,7 +58,10 @@
   
   <script setup lang="ts">
   import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import type { TestCase } from '@/types/api'
+
+  const { t } = useI18n()
   
   interface Props {
     modelValue: boolean

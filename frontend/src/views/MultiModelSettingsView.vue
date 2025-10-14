@@ -1,14 +1,14 @@
 <template>
   <div class="multi-model-settings">
     <div class="page-header">
-      <h2>多模型配置</h2>
-      <p>配置多个模型提供商和API密钥，实现轮询机制增加并发限制</p>
+      <h2>{{ $t('settings.multiModel.title') }}</h2>
+      <p>{{ $t('settings.multiModel.description') }}</p>
     </div>
     
     <el-card class="settings-card">
       <template #header>
         <div class="card-header">
-          <span>模型提供商配置</span>
+          <span>{{ $t('settings.multiModel.providerConfig') }}</span>
           <div class="header-actions">
             <el-button 
               type="primary" 
@@ -16,14 +16,14 @@
               :loading="testing"
               :disabled="!isConfigValid"
             >
-              测试配置
+              {{ $t('settings.multiModel.testConfig') }}
             </el-button>
             <el-button 
               type="success" 
               @click="saveConfig"
               :loading="saving"
             >
-              保存配置
+              {{ $t('settings.multiModel.saveConfig') }}
             </el-button>
           </div>
         </div>
@@ -41,13 +41,13 @@
               <div class="provider-header">
                 <div class="provider-title">
                   <el-icon><Setting /></el-icon>
-                  <span>{{ provider.provider_name || `模型提供商 ${index + 1}` }}</span>
+                  <span>{{ provider.provider_name || $t('settings.multiModel.providerNameTemplate', { index: index + 1 }) }}</span>
                 </div>
                 <div class="provider-actions">
                   <el-switch 
                     v-model="provider.is_active" 
-                    active-text="启用" 
-                    inactive-text="禁用"
+                    :active-text="$t('settings.multiModel.actions.enable')" 
+                    :inactive-text="$t('settings.multiModel.actions.disable')"
                   />
                   <el-button 
                     type="danger" 
@@ -55,7 +55,7 @@
                     @click="removeProvider(index)"
                     :disabled="form.providers.length <= 1"
                   >
-                    删除
+                    {{ $t('settings.multiModel.actions.delete') }}
                   </el-button>
                 </div>
               </div>
@@ -63,25 +63,25 @@
 
             <el-row :gutter="16">
               <el-col :span="12">
-                <el-form-item label="提供商名称" required>
+                <el-form-item :label="$t('settings.multiModel.labels.providerName')" required>
                   <el-input 
                     v-model="provider.provider_name" 
-                    placeholder="如：OpenAI账号1"
+                    :placeholder="$t('settings.multiModel.placeholders.providerName')"
                     clearable
                   />
                 </el-form-item>
               </el-col>
               
               <el-col :span="12">
-                <el-form-item label="模型类型" required>
+                <el-form-item :label="$t('settings.multiModel.labels.modelType')" required>
                   <el-select 
                     v-model="provider.model_type" 
-                    placeholder="选择模型类型"
+                    :placeholder="$t('settings.multiModel.placeholders.selectModelType')"
                     @change="onModelTypeChange(provider)"
                   >
-                    <el-option label="DeepSeek" value="deepseek" />
-                    <el-option label="OpenAI" value="openai" />
-                    <el-option label="豆包" value="doubao" />
+                    <el-option :label="$t('settings.multiModel.modelTypes.deepseek')" value="deepseek" />
+                    <el-option :label="$t('settings.multiModel.modelTypes.openai')" value="openai" />
+                    <el-option :label="$t('settings.multiModel.modelTypes.doubao')" value="doubao" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -89,29 +89,29 @@
 
             <el-row :gutter="16">
               <el-col :span="12">
-                <el-form-item label="API基础URL" required>
+                <el-form-item :label="$t('settings.multiModel.labels.baseUrl')" required>
                   <el-input 
                     v-model="provider.base_url" 
-                    placeholder="API基础URL"
+                    :placeholder="$t('settings.multiModel.placeholders.baseUrl')"
                     clearable
                   />
                   <div class="form-tip">
                     <el-icon><InfoFilled /></el-icon>
-                    <span>DeepSeek: https://api.deepseek.com/v1, OpenAI: https://api.openai.com/v1, 豆包: https://api.doubao.com</span>
+                    <span>{{ $t('settings.multiModel.tips.baseUrlExamples') }}</span>
                   </div>
                 </el-form-item>
               </el-col>
               
               <el-col :span="12">
-                <el-form-item label="模型名称" required>
+                <el-form-item :label="$t('settings.multiModel.labels.modelName')" required>
                   <el-input 
                     v-model="provider.model" 
-                    placeholder="模型名称"
+                    :placeholder="$t('settings.multiModel.placeholders.modelName')"
                     clearable
                   />
                   <div class="form-tip">
                     <el-icon><InfoFilled /></el-icon>
-                    <span>DeepSeek: deepseek-chat, OpenAI: gpt-4o, 豆包: doubao-v1.5</span>
+                    <span>{{ $t('settings.multiModel.tips.modelExamples') }}</span>
                   </div>
                 </el-form-item>
               </el-col>
@@ -119,7 +119,7 @@
 
             <el-row :gutter="16">
               <el-col :span="8">
-                <el-form-item label="温度参数">
+                <el-form-item :label="$t('settings.multiModel.labels.temperature')">
                   <el-slider 
                     v-model="provider.temperature" 
                     :min="0" 
@@ -132,19 +132,19 @@
               </el-col>
               
               <el-col :span="8">
-                <el-form-item label="最大Token数">
+                <el-form-item :label="$t('settings.multiModel.labels.maxTokens')">
                   <el-input-number 
                     v-model="provider.max_tokens" 
                     :min="1" 
                     :max="100000"
-                    placeholder="不限制"
+                    :placeholder="$t('settings.multiModel.placeholders.noLimit')"
                     style="width: 100%"
                   />
                 </el-form-item>
               </el-col>
               
               <el-col :span="8">
-                <el-form-item label="限流数量">
+                <el-form-item :label="$t('settings.multiModel.labels.rateLimit')">
                   <el-input-number 
                     v-model="provider.rate_limit" 
                     :min="1" 
@@ -153,7 +153,7 @@
                   />
                   <div class="form-tip">
                     <el-icon><InfoFilled /></el-icon>
-                    <span>每分钟最大请求数</span>
+                    <span>{{ $t('settings.multiModel.tips.rateLimitTip') }}</span>
                   </div>
                 </el-form-item>
               </el-col>
@@ -162,7 +162,7 @@
             <!-- 层级2：API密钥配置 -->
             <el-divider content-position="left">
               <el-icon><Key /></el-icon>
-              <span>API密钥配置</span>
+              <span>{{ $t('settings.multiModel.labels.apiKeyConfig') }}</span>
             </el-divider>
 
             <div class="api-keys-container">
@@ -174,7 +174,7 @@
                 <el-input 
                   v-model="provider.api_keys[keyIndex]" 
                   type="password" 
-                  placeholder="请输入API密钥"
+                  :placeholder="$t('settings.multiModel.placeholders.apiKey')"
                   show-password
                   clearable
                 />
@@ -184,7 +184,7 @@
                   @click="removeApiKey(index, keyIndex)"
                   :disabled="provider.api_keys.length <= 1"
                 >
-                  删除
+                  {{ $t('settings.multiModel.actions.delete') }}
                 </el-button>
               </div>
               
@@ -195,7 +195,7 @@
                 style="margin-top: 8px;"
               >
                 <el-icon><Plus /></el-icon>
-                添加API密钥
+                {{ $t('settings.multiModel.actions.addApiKey') }}
               </el-button>
             </div>
           </el-card>
@@ -208,7 +208,7 @@
           size="large"
         >
           <el-icon><Plus /></el-icon>
-          添加模型提供商
+          {{ $t('settings.multiModel.addProvider') }}
         </el-button>
       </div>
     </el-card>
@@ -217,37 +217,37 @@
     <el-card class="status-card" style="margin-top: 20px;">
       <template #header>
         <div class="card-header">
-          <span>配置状态</span>
+          <span>{{ $t('settings.multiModel.configStatus') }}</span>
           <el-button 
             type="primary" 
             size="small" 
             @click="refreshStatus"
             :loading="loadingStatus"
           >
-            刷新状态
+            {{ $t('common.refresh') }}
           </el-button>
         </div>
       </template>
 
       <div v-if="status" class="status-content">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="总提供商数">{{ status.total_providers }}</el-descriptions-item>
-          <el-descriptions-item label="总API密钥数">{{ status.total_api_keys }}</el-descriptions-item>
-          <el-descriptions-item label="当前提供商索引">{{ status.current_provider_index }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('settings.multiModel.totalProviders')">{{ status.total_providers }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('settings.multiModel.totalApiKeys')">{{ status.total_api_keys }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('settings.multiModel.currentProviderIndex')">{{ status.current_provider_index }}</el-descriptions-item>
         </el-descriptions>
 
         <div class="provider-details" style="margin-top: 16px;">
-          <h4>提供商详情</h4>
+          <h4>{{ $t('settings.multiModel.providerDetails') }}</h4>
           <el-table :data="status.provider_details" style="width: 100%">
-            <el-table-column prop="provider_name" label="提供商名称" />
-            <el-table-column prop="model_type" label="模型类型" width="100" />
-            <el-table-column prop="api_key_count" label="API密钥数" width="100" />
-            <el-table-column prop="rate_limit" label="限流数量" width="100" />
-            <el-table-column prop="current_requests" label="当前请求数" width="120" />
-            <el-table-column prop="is_available" label="状态" width="100">
+            <el-table-column prop="provider_name" :label="$t('settings.multiModel.providerName')" />
+            <el-table-column prop="model_type" :label="$t('settings.multiModel.modelType')" width="100" />
+            <el-table-column prop="api_key_count" :label="$t('settings.multiModel.apiKeyCount')" width="100" />
+            <el-table-column prop="rate_limit" :label="$t('settings.multiModel.rateLimit')" width="100" />
+            <el-table-column prop="current_requests" :label="$t('settings.multiModel.currentRequests')" width="120" />
+            <el-table-column prop="is_available" :label="$t('common.status')" width="100">
               <template #default="scope">
                 <el-tag :type="scope.row.is_available ? 'success' : 'danger'">
-                  {{ scope.row.is_available ? '可用' : '限流中' }}
+                  {{ scope.row.is_available ? $t('common.available') : $t('common.rateLimited') }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -260,9 +260,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting, InfoFilled, Key, Plus } from '@element-plus/icons-vue'
 import { multiModelConfigApi } from '@/services/api'
+
+const { t } = useI18n()
 
 interface ModelProvider {
   provider_id: string
@@ -303,7 +306,7 @@ const form = reactive({
   providers: [
     {
       provider_id: 'deepseek_default',
-      provider_name: 'DeepSeek默认配置',
+      provider_name: t('settings.multiModel.defaultProviderName'),
       model_type: 'deepseek',
       base_url: 'https://api.deepseek.com/v1',
       model: 'deepseek-chat',
@@ -344,7 +347,7 @@ const onModelTypeChange = (provider: ModelProvider) => {
 const addProvider = () => {
   const newProvider = {
     provider_id: generateProviderId(),
-    provider_name: `模型提供商 ${form.providers.length + 1}`,
+    provider_name: t('settings.multiModel.providerNameTemplate', { index: form.providers.length + 1 }),
     model_type: 'doubao',
     base_url: 'https://api.doubao.com',
     model: 'doubao-v1.5',
@@ -382,7 +385,7 @@ const loadConfig = async () => {
     Object.assign(form, config)
   } catch (error) {
     console.error('加载配置失败:', error)
-    ElMessage.error('加载配置失败')
+    ElMessage.error(t('settings.multiModel.messages.loadFailed'))
   }
 }
 
@@ -391,25 +394,25 @@ const saveConfig = async () => {
     // 验证配置
     for (const provider of form.providers) {
       if (!provider.provider_name.trim()) {
-        ElMessage.error('提供商名称不能为空')
+        ElMessage.error(t('settings.multiModel.messages.providerNameRequired'))
         return
       }
       if (!provider.provider_id) {
         provider.provider_id = generateProviderId()
       }
       if (provider.is_active && !provider.api_keys.some(key => key.trim())) {
-        ElMessage.error(`提供商 ${provider.provider_name} 必须配置至少一个API密钥`)
+        ElMessage.error(t('settings.multiModel.messages.apiKeyRequired', { name: provider.provider_name }))
         return
       }
     }
     
     saving.value = true
     await multiModelConfigApi.updateConfig(form)
-    ElMessage.success('配置保存成功')
+    ElMessage.success(t('settings.multiModel.messages.saveSuccess'))
     await loadConfig()
   } catch (error: any) {
     console.error('保存配置失败:', error)
-    ElMessage.error(error.response?.data?.detail || '保存配置失败')
+    ElMessage.error(error.response?.data?.detail || t('settings.multiModel.messages.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -420,13 +423,13 @@ const testConfig = async () => {
     testing.value = true
     const response = await multiModelConfigApi.testConfig()
     if (response.success) {
-      ElMessage.success('配置测试成功')
+      ElMessage.success(t('settings.multiModel.messages.testSuccess'))
     } else {
-      ElMessage.error('配置测试失败')
+      ElMessage.error(t('settings.multiModel.messages.testFailed'))
     }
   } catch (error) {
     console.error('测试配置失败:', error)
-    ElMessage.error('测试配置失败')
+    ElMessage.error(t('settings.multiModel.messages.testFailed'))
   } finally {
     testing.value = false
   }
@@ -439,7 +442,7 @@ const refreshStatus = async () => {
     status.value = response
   } catch (error) {
     console.error('获取状态失败:', error)
-    ElMessage.error('获取状态失败')
+    ElMessage.error(t('settings.multiModel.messages.getStatusFailed'))
   } finally {
     loadingStatus.value = false
   }

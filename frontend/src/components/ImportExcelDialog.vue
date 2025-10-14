@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="导入Excel测试用例"
+    :title="$t('excelImport.title')"
     width="600px"
     :close-on-click-modal="false"
     @close="handleClose"
@@ -21,11 +21,11 @@
         >
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
           <div class="el-upload__text">
-            将Excel文件拖到此处，或<em>点击上传</em>
+            {{ $t('excelImport.dragFile') }}<em>{{ $t('excelImport.clickUpload') }}</em>
           </div>
           <template #tip>
             <div class="el-upload__tip">
-              只能上传xlsx/xls文件，且不超过10MB
+              {{ $t('excelImport.uploadTip') }}
             </div>
           </template>
         </el-upload>
@@ -33,37 +33,37 @@
 
       <!-- 预览区域 -->
       <div v-if="previewData.length > 0" class="preview-area">
-        <h4>预览数据 (前5行)</h4>
+        <h4>{{ $t('excelImport.previewData') }}</h4>
         <el-table :data="previewData" style="width: 100%" size="small">
-          <el-table-column prop="name" label="名称" />
-          <el-table-column prop="description" label="描述" />
-          <el-table-column prop="task_content" label="任务内容" />
-          <el-table-column prop="category" label="分类" />
-          <el-table-column prop="priority" label="优先级" />
+          <el-table-column prop="name" :label="$t('common.name')" />
+          <el-table-column prop="description" :label="$t('common.description')" />
+          <el-table-column prop="task_content" :label="$t('testCase.taskContent')" />
+          <el-table-column prop="category" :label="$t('common.category')" />
+          <el-table-column prop="priority" :label="$t('common.priority')" />
         </el-table>
       </div>
 
       <!-- 导入选项 -->
       <div class="import-options">
-        <h4>导入选项</h4>
+        <h4>{{ $t('excelImport.importOptions') }}</h4>
         <el-form :model="importOptions" label-width="100px">
-          <el-form-item label="默认状态">
-            <el-select v-model="importOptions.defaultStatus" placeholder="选择默认状态">
-              <el-option label="激活" value="active" />
-              <el-option label="非激活" value="inactive" />
-              <el-option label="草稿" value="draft" />
+          <el-form-item :label="$t('excelImport.defaultStatus')">
+            <el-select v-model="importOptions.defaultStatus" :placeholder="$t('excelImport.selectDefaultStatus')">
+              <el-option :label="$t('common.active')" value="active" />
+              <el-option :label="$t('common.inactive')" value="inactive" />
+              <el-option :label="$t('common.draft')" value="draft" />
             </el-select>
           </el-form-item>
-          <el-form-item label="默认优先级">
-            <el-select v-model="importOptions.defaultPriority" placeholder="选择默认优先级">
-              <el-option label="低" value="low" />
-              <el-option label="中" value="medium" />
-              <el-option label="高" value="high" />
-              <el-option label="紧急" value="critical" />
+          <el-form-item :label="$t('excelImport.defaultPriority')">
+            <el-select v-model="importOptions.defaultPriority" :placeholder="$t('excelImport.selectDefaultPriority')">
+              <el-option :label="$t('common.low')" value="low" />
+              <el-option :label="$t('common.medium')" value="medium" />
+              <el-option :label="$t('common.high')" value="high" />
+              <el-option :label="$t('common.critical')" value="critical" />
             </el-select>
           </el-form-item>
-          <el-form-item label="默认分类">
-            <el-input v-model="importOptions.defaultCategory" placeholder="输入默认分类" />
+          <el-form-item :label="$t('excelImport.defaultCategory')">
+            <el-input v-model="importOptions.defaultCategory" :placeholder="$t('excelImport.enterDefaultCategory')" />
           </el-form-item>
         </el-form>
       </div>
@@ -71,14 +71,14 @@
 
     <template #footer>
       <span class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
+        <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
         <el-button 
           type="primary" 
           @click="handleImport"
           :loading="importing"
           :disabled="!selectedFile"
         >
-          {{ importing ? '导入中...' : '开始导入' }}
+          {{ importing ? $t('excelImport.importing') : $t('excelImport.startImport') }}
         </el-button>
       </span>
     </template>
@@ -87,10 +87,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { testCaseApi } from '@/services/api'
 import type { TestCase } from '@/types/api'
+
+const { t } = useI18n()
 
 interface ImportOptions {
   defaultStatus: string

@@ -1,7 +1,7 @@
 <template>
   <div class="statistics">
     <div class="page-header">
-      <h2>统计信息</h2>
+      <h2>{{ $t('statistics.title') }}</h2>
     </div>
 
     <el-row :gutter="20">
@@ -11,7 +11,7 @@
             <el-icon class="stat-icon" color="#409EFF"><Document /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ statistics.total_test_cases }}</div>
-              <div class="stat-label">测试用例总数</div>
+              <div class="stat-label">{{ $t('statistics.totalTestCases') }}</div>
             </div>
           </div>
         </el-card>
@@ -23,7 +23,7 @@
             <el-icon class="stat-icon" color="#67C23A"><VideoPlay /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ statistics.total_executions }}</div>
-              <div class="stat-label">执行总次数</div>
+              <div class="stat-label">{{ $t('statistics.totalExecutions') }}</div>
             </div>
           </div>
         </el-card>
@@ -35,7 +35,7 @@
             <el-icon class="stat-icon" color="#E6A23C"><TrendCharts /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ statistics.success_rate }}%</div>
-              <div class="stat-label">成功率</div>
+              <div class="stat-label">{{ $t('statistics.successRate') }}</div>
             </div>
           </div>
         </el-card>
@@ -47,7 +47,7 @@
             <el-icon class="stat-icon" color="#F56C6C"><Clock /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ formatDuration(statistics.average_duration) }}</div>
-              <div class="stat-label">平均耗时</div>
+              <div class="stat-label">{{ $t('statistics.averageDuration') }}</div>
             </div>
           </div>
         </el-card>
@@ -59,11 +59,11 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <h3>分类统计</h3>
+              <h3>{{ $t('statistics.categoryStats') }}</h3>
             </div>
           </template>
           <div v-if="statistics.category_stats.length === 0" class="empty-state">
-            <el-empty description="暂无分类数据" />
+            <el-empty :description="$t('statistics.noCategoryData')" />
           </div>
           <div v-else class="category-list">
             <div 
@@ -82,11 +82,11 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <h3>优先级统计</h3>
+              <h3>{{ $t('statistics.priorityStats') }}</h3>
             </div>
           </template>
           <div v-if="statistics.priority_stats.length === 0" class="empty-state">
-            <el-empty description="暂无优先级数据" />
+            <el-empty :description="$t('statistics.noPriorityData')" />
           </div>
           <div v-else class="priority-list">
             <div 
@@ -108,10 +108,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Document, VideoPlay, TrendCharts, Clock } from '@element-plus/icons-vue'
 import { statisticsApi } from '@/services/api'
 import type { Statistics } from '@/types/api'
+
+const { t } = useI18n()
 
 const statistics = ref<Statistics>({
   total_test_cases: 0,
@@ -130,7 +133,7 @@ const loadStatistics = async () => {
     const data = await statisticsApi.getStatistics()
     statistics.value = data
   } catch (error) {
-    ElMessage.error('加载统计信息失败')
+    ElMessage.error(t('statistics.messages.loadFailed'))
   }
 }
 

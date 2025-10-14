@@ -1,116 +1,170 @@
 <template>
   <div class="execution-detail">
     <div class="page-header">
-      <h2>执行详情</h2>
+      <h2>{{ $t('execution.detail') }}</h2>
       <el-button @click="goBack" type="primary">
         <el-icon><ArrowLeft /></el-icon>
-        返回
+        {{ $t('common.back') }}
       </el-button>
     </div>
 
-    <div v-loading="loading">
-      <el-card v-if="execution" class="execution-info">
-        <template #header>
-          <div class="card-header">
-            <span>执行信息</span>
-            <el-tag :type="getStatusType(execution.overall_status)">
-              {{ execution.overall_status }}
-            </el-tag>
-          </div>
-        </template>
-        
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="执行名称">{{ execution.execution_name }}</el-descriptions-item>
-          <el-descriptions-item label="测试用例ID">{{ execution.test_case_id }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ execution.status }}</el-descriptions-item>
-          <el-descriptions-item label="总耗时">{{ formatDuration(execution.total_duration) }}</el-descriptions-item>
-          <el-descriptions-item label="总步骤数">{{ execution.total_steps }}</el-descriptions-item>
-          <el-descriptions-item label="通过步骤">{{ execution.passed_steps }}</el-descriptions-item>
-          <el-descriptions-item label="失败步骤">{{ execution.failed_steps }}</el-descriptions-item>
-          <el-descriptions-item label="跳过步骤">{{ execution.skipped_steps }}</el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ formatDate(execution.started_at) }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ execution.completed_at ? formatDate(execution.completed_at) : '' }}</el-descriptions-item>
-        </el-descriptions>
+    <div v-loading="loading" class="main-content">
+      <!-- 左侧步骤列表面板 -->
+      <div class="left-panel">
+        <el-card class="steps-panel">
+          
+          <div v-if="steps.length > 0" class="steps-list">
+            <div class="steps-summary">
+              <span>{{ steps.length }} {{ $t('execution.completedSteps') }}</span>
 
-        <div v-if="execution.summary" class="summary-section">
-          <h3>执行摘要</h3>
-          <p>{{ execution.summary }}</p>
-        </div>
-
-        <div v-if="execution.recommendations" class="recommendations-section">
-          <h3>建议</h3>
-          <p>{{ execution.recommendations }}</p>
-        </div>
-
-        <div v-if="execution.error_message" class="error-section">
-          <h3>错误信息</h3>
-          <el-alert :title="execution.error_message" type="error" show-icon />
-        </div>
-      </el-card>
-
-      <el-card v-if="steps.length > 0" class="steps-info">
-        <template #header>
-          <span>执行步骤</span>
-        </template>
-        
-        <el-timeline>
-          <el-timeline-item
-            v-for="step in steps"
-            :key="step.id"
-            :type="getStepStatusType(step.status)"
-            :timestamp="formatDate(step.started_at)"
-            placement="top"
-          >
-            <el-card>
-              <template #header>
-                <div class="step-header">
-                  <span>{{ step.step_name }}</span>
-                  <el-tag :type="getStepStatusType(step.status)" size="small">
-                    {{ step.status }}
-                  </el-tag>
+            </div>
+            
+            <div class="steps-container">
+              <div
+                v-for="(step, index) in steps"
+                :key="step.id"
+                class="step-item"
+                :class="{ 
+                  'active': selectedStepIndex === index,
+                  'completed': step.status === 'PASSED',
+                  'failed': step.status === 'FAILED',
+                  'skipped': step.status === 'SKIPPED'
+                }"
+                @click="selectStep(index)"
+              >
+                <div class="step-status">
+                  <el-icon v-if="step.status === 'PASSED'" class="status-icon success">
+                    <Check />
+                  </el-icon>
+                  <el-icon v-else-if="step.status === 'FAILED'" class="status-icon error">
+                    <Close />
+                  </el-icon>
+                  <el-icon v-else-if="step.status === 'SKIPPED'" class="status-icon warning">
+                    <Minus />
+                  </el-icon>
+                  <el-icon v-else class="status-icon info">
+                    <Clock />
+                  </el-icon>
                 </div>
-              </template>
-              
-              <div class="step-content">
-                <p v-if="step.description">{{ step.description }}</p>
-                <p v-if="step.duration_seconds" class="step-duration">
-                  耗时: {{ step.duration_seconds }}s
-                </p>
-                <div v-if="step.error_message" class="step-error">
-                  <el-alert :title="step.error_message" type="error" show-icon />
-                </div>
-                <div v-if="step.screenshot_data || step.screenshot_path" class="step-screenshot">
-                  <h4>截图</h4>
-                  <img :src="getScreenshotUrl(step.screenshot_data || step.screenshot_path)" alt="步骤截图" />
+                <div class="step-content">
+                  <div class="step-name">{{ step.step_name }}</div>
+                  <div v-if="step.description" class="step-description">{{ step.description }}</div>
+                  <div v-if="step.duration_seconds" class="step-duration">
+                    耗时: {{ step.duration_seconds }}s
+                  </div>
                 </div>
               </div>
-            </el-card>
-          </el-timeline-item>
-        </el-timeline>
-      </el-card>
+            </div>
+            
 
-      <el-empty v-else-if="!loading" description="暂无执行步骤信息" />
+          </div>
+          
+          <el-empty v-else-if="!loading" description="暂无执行步骤信息" />
+        </el-card>
+      </div>
+
+      <!-- 右侧截图显示面板 -->
+      <div class="right-panel">
+        <el-card class="screenshot-panel">
+          <div v-if="selectedStep" class="screenshot-container">
+            <div v-if="selectedStep.screenshot_data || selectedStep.screenshot_path" class="screenshot-wrapper">
+              <img 
+                :src="getScreenshotUrl(selectedStep.screenshot_data || selectedStep.screenshot_path)" 
+                :alt="`步骤 ${selectedStepIndex + 1} 截图`"
+                class="screenshot-image"
+              />
+            </div>
+            <div v-else class="no-screenshot">
+              <el-empty description="该步骤没有截图" />
+            </div>
+            
+            <!-- 导航控制 -->
+            <div class="navigation-controls">
+              <el-button 
+                :disabled="selectedStepIndex === 0"
+                @click="previousStep"
+                size="small"
+              >
+                <el-icon><ArrowLeft /></el-icon>
+                上一步
+              </el-button>
+              <el-button 
+                :disabled="selectedStepIndex === steps.length - 1"
+                @click="nextStep"
+                size="small"
+              >
+                下一步
+                <el-icon><ArrowRight /></el-icon>
+              </el-button>
+            </div>
+          </div>
+          
+          <div v-else class="no-step-selected">
+            <el-empty description="请选择一个步骤查看截图" />
+          </div>
+        </el-card>
+      </div>
     </div>
+
+    <!-- 执行信息弹窗 -->
+    <el-dialog v-model="showExecutionInfo" title="执行信息" width="800px">
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="执行名称">{{ execution?.execution_name }}</el-descriptions-item>
+        <el-descriptions-item label="测试用例ID">{{ execution?.test_case_id }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ execution?.status }}</el-descriptions-item>
+        <el-descriptions-item label="总耗时">{{ formatDuration(execution?.total_duration || 0) }}</el-descriptions-item>
+        <el-descriptions-item label="总步骤数">{{ execution?.total_steps }}</el-descriptions-item>
+        <el-descriptions-item label="通过步骤">{{ execution?.passed_steps }}</el-descriptions-item>
+        <el-descriptions-item label="失败步骤">{{ execution?.failed_steps }}</el-descriptions-item>
+        <el-descriptions-item label="跳过步骤">{{ execution?.skipped_steps }}</el-descriptions-item>
+        <el-descriptions-item label="开始时间">{{ formatDate(execution?.started_at || '') }}</el-descriptions-item>
+        <el-descriptions-item label="完成时间">{{ execution?.completed_at ? formatDate(execution.completed_at) : '' }}</el-descriptions-item>
+      </el-descriptions>
+
+      <div v-if="execution?.summary" class="summary-section">
+        <h3>执行摘要</h3>
+        <p>{{ execution.summary }}</p>
+      </div>
+
+      <div v-if="execution?.recommendations" class="recommendations-section">
+        <h3>建议</h3>
+        <p>{{ execution.recommendations }}</p>
+      </div>
+
+      <div v-if="execution?.error_message" class="error-section">
+        <h3>错误信息</h3>
+        <el-alert :title="execution.error_message" type="error" show-icon />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, ArrowUp, Check, Close, Minus, Clock } from '@element-plus/icons-vue'
 import { testExecutionApi } from '@/services/api'
 import type { TestExecution } from '@/types/api'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const execution = ref<TestExecution | null>(null)
 const steps = ref<any[]>([])
+const selectedStepIndex = ref(0)
+const showExecutionInfo = ref(false)
 
 const executionId = computed(() => {
   const id = route.params.executionId
   return id ? parseInt(id as string) : null
+})
+
+const selectedStep = computed(() => {
+  return steps.value[selectedStepIndex.value] || null
 })
 
 const loadExecutionDetail = async () => {
@@ -124,6 +178,14 @@ const loadExecutionDetail = async () => {
     ])
     execution.value = executionData
     steps.value = stepsData
+    
+    // 默认选择第一个有截图的步骤
+    const firstStepWithScreenshot = stepsData.findIndex((step: any) => 
+      step.screenshot_data || step.screenshot_path
+    )
+    if (firstStepWithScreenshot !== -1) {
+      selectedStepIndex.value = firstStepWithScreenshot
+    }
   } catch (error) {
     ElMessage.error('加载执行详情失败')
   } finally {
@@ -131,35 +193,26 @@ const loadExecutionDetail = async () => {
   }
 }
 
+const selectStep = (index: number) => {
+  selectedStepIndex.value = index
+}
+
+const previousStep = () => {
+  if (selectedStepIndex.value > 0) {
+    selectedStepIndex.value--
+  }
+}
+
+const nextStep = () => {
+  if (selectedStepIndex.value < steps.value.length - 1) {
+    selectedStepIndex.value++
+  }
+}
+
 const goBack = () => {
   router.back()
 }
 
-const getStatusType = (status: string): string => {
-  switch (status) {
-    case 'PASSED':
-      return 'success'
-    case 'FAILED':
-      return 'danger'
-    case 'PARTIAL':
-      return 'warning'
-    default:
-      return 'info'
-  }
-}
-
-const getStepStatusType = (status: string): string => {
-  switch (status) {
-    case 'PASSED':
-      return 'success'
-    case 'FAILED':
-      return 'danger'
-    case 'SKIPPED':
-      return 'warning'
-    default:
-      return 'info'
-  }
-}
 
 const formatDuration = (seconds: number): string => {
   if (!seconds) return '0s'
@@ -192,30 +245,248 @@ onMounted(() => {
 
 <style scoped>
 .execution-detail {
-  max-width: 1200px;
-  margin: 0 auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+  flex-shrink: 0;
 }
 
 .page-header h2 {
   margin: 0;
   color: #303133;
+  font-size: 18px;
+  font-weight: 500;
 }
 
-.execution-info {
-  margin-bottom: 20px;
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
-.card-header {
+.left-panel {
+  width: 400px;
+  border-right: 1px solid #e4e7ed;
+  background: #f8f9fa;
+  overflow-y: auto;
+}
+
+.right-panel {
+  flex: 1;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.steps-panel {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.steps-panel :deep(.el-card__header) {
+  padding: 16px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.panel-header span {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+
+.steps-list {
+  padding: 0 20px 20px;
+}
+
+.steps-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #e4e7ed;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.steps-summary span {
+  font-size: 14px;
+  color: #606266;
+}
+
+.expand-icon {
+  color: #909399;
+  transition: transform 0.3s;
+}
+
+.steps-container {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 1px solid transparent;
+}
+
+.step-item:hover {
+  background: #f0f9ff;
+  border-color: #b3d8ff;
+}
+
+.step-item.active {
+  background: #e1f5fe;
+  border-color: #4fc3f7;
+}
+
+.step-item.completed {
+  background: #f0f9ff;
+}
+
+.step-item.failed {
+  background: #fef2f2;
+}
+
+.step-item.skipped {
+  background: #fffbeb;
+}
+
+.step-status {
+  margin-right: 12px;
+  margin-top: 2px;
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+.status-icon.success {
+  color: #67c23a;
+}
+
+.status-icon.error {
+  color: #f56c6c;
+}
+
+.status-icon.warning {
+  color: #e6a23c;
+}
+
+.status-icon.info {
+  color: #909399;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.step-description {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.step-duration {
+  font-size: 12px;
+  color: #909399;
+}
+
+.task-info {
+  padding: 12px 0;
+  border-top: 1px solid #e4e7ed;
+  margin-top: 16px;
+  text-align: center;
+}
+
+.task-info span {
+  font-size: 12px;
+  color: #909399;
+}
+
+.screenshot-panel {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.screenshot-panel :deep(.el-card__body) {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.screenshot-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.screenshot-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.screenshot-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.no-screenshot,
+.no-step-selected {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navigation-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e7ed;
 }
 
 .summary-section,
@@ -231,42 +502,21 @@ onMounted(() => {
   color: #303133;
 }
 
-.steps-info {
-  margin-top: 20px;
-}
-
-.step-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.step-content {
-  margin-top: 10px;
-}
-
-.step-duration {
-  color: #909399;
-  font-size: 14px;
-  margin: 5px 0;
-}
-
-.step-error {
-  margin-top: 10px;
-}
-
-.step-screenshot {
-  margin-top: 15px;
-}
-
-.step-screenshot h4 {
-  margin-bottom: 10px;
-  color: #303133;
-}
-
-.step-screenshot img {
-  max-width: 100%;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .left-panel {
+    width: 100%;
+    height: 300px;
+    border-right: none;
+    border-bottom: 1px solid #e4e7ed;
+  }
+  
+  .right-panel {
+    height: calc(100vh - 300px);
+  }
 }
 </style> 

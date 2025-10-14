@@ -1,30 +1,30 @@
 <template>
   <div class="excel-import-page">
     <div class="page-header">
-      <h2>Excel批量导入</h2>
-      <p>支持大文件分批处理，实时显示导入进度</p>
+      <h2>{{ $t('excelImport.title') }}</h2>
+      <p>{{ $t('excelImport.description') }}</p>
     </div>
 
     <!-- 导入表单区域 -->
     <el-card v-if="!hasRunningTask" class="import-form-card">
       <template #header>
-        <span>选择Excel文件</span>
+        <span>{{ $t('excelImport.selectFile') }}</span>
       </template>
       
       <!-- 导入模式选择 -->
       <div class="import-mode-section">
-        <h3>导入模式</h3>
+        <h3>{{ $t('excelImport.importMode') }}</h3>
         <el-radio-group v-model="importMode" class="mode-selector">
           <el-radio label="smart" size="large">
             <div class="mode-option">
-              <div class="mode-title">🤖 智能识别模式</div>
-              <div class="mode-desc">支持各种格式的Excel文件，自动识别列名和内容</div>
+              <div class="mode-title">🤖 {{ $t('excelImport.smartMode') }}</div>
+              <div class="mode-desc">{{ $t('excelImport.smartModeDesc') }}</div>
             </div>
           </el-radio>
           <el-radio label="standard" size="large">
             <div class="mode-option">
-              <div class="mode-title">📄 标准模版模式</div>
-              <div class="mode-desc">使用统一的标准模版格式，保证数据质量</div>
+              <div class="mode-title">📄 {{ $t('excelImport.standardMode') }}</div>
+              <div class="mode-desc">{{ $t('excelImport.standardModeDesc') }}</div>
             </div>
           </el-radio>
         </el-radio-group>
@@ -32,29 +32,29 @@
         <!-- 模版下载区域 -->
         <div v-if="importMode === 'standard'" class="template-download">
           <el-alert
-            title="使用标准模版"
+            :title="$t('excelImport.useStandardTemplate')"
             type="info"
-            description="请先下载标准模版，按照模版格式填写数据后上传"
+            :description="$t('excelImport.templateDescription')"
             show-icon
             :closable="false"
           />
           <div class="template-actions">
             <el-button type="primary" @click="downloadTemplate" :loading="downloadingTemplate">
               <el-icon><Download /></el-icon>
-              下载标准模版
+              {{ $t('excelImport.downloadTemplate') }}
             </el-button>
             <el-button type="info" @click="viewTemplateSample">
               <el-icon><View /></el-icon>
-              查看样例
+              {{ $t('excelImport.viewSample') }}
             </el-button>
           </div>
         </div>
         
         <div v-else class="smart-mode-info">
           <el-alert
-            title="智能识别模式"
+            :title="$t('excelImport.smartMode')"
             type="success"
-            description="支持各种列名格式，如：标题/名称/Name、步骤描述/任务内容、预期结果等"
+            :description="$t('excelImport.smartModeDescription')"
             show-icon
             :closable="false"
           />
@@ -75,11 +75,11 @@
         >
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
           <div class="el-upload__text">
-            将Excel文件拖到此处，或<em>点击上传</em>
+            {{ $t('excelImport.dragFile') }}<em>{{ $t('excelImport.clickUpload') }}</em>
           </div>
           <template #tip>
             <div class="el-upload__tip">
-              只能上传xlsx/xls文件，支持大文件分批处理
+              {{ $t('excelImport.uploadTip') }}
             </div>
           </template>
         </el-upload>
@@ -87,21 +87,21 @@
 
       <!-- 导入配置 -->
       <div v-if="selectedFile" class="import-config">
-        <h3>导入配置</h3>
+        <h3>{{ $t('excelImport.importConfig') }}</h3>
         <el-form :model="importOptions" label-width="120px">
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-form-item label="任务名称">
-                <el-input v-model="taskName" placeholder="为此次导入任务命名" />
+              <el-form-item :label="$t('excelImport.taskName')">
+                <el-input v-model="taskName" :placeholder="$t('excelImport.taskNamePlaceholder')" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="批次大小">
+              <el-form-item :label="$t('excelImport.batchSize')">
                 <el-input-number 
                   v-model="batchSize" 
                   :min="1" 
                   :max="100" 
-                  placeholder="每批处理行数"
+                  :placeholder="$t('excelImport.batchSizePlaceholder')"
                 />
               </el-form-item>
             </el-col>
@@ -109,31 +109,31 @@
           
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-form-item label="默认状态">
-                <el-select v-model="importOptions.defaultStatus" placeholder="选择默认状态">
-                  <el-option label="激活" value="active" />
-                  <el-option label="非激活" value="inactive" />
-                  <el-option label="草稿" value="draft" />
+              <el-form-item :label="$t('excelImport.defaultStatus')">
+                <el-select v-model="importOptions.defaultStatus" :placeholder="$t('excelImport.selectDefaultStatus')">
+                  <el-option :label="$t('common.active')" value="active" />
+                  <el-option :label="$t('common.inactive')" value="inactive" />
+                  <el-option :label="$t('common.draft')" value="draft" />
                 </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="默认优先级">
-                <el-select v-model="importOptions.defaultPriority" placeholder="选择默认优先级">
-                  <el-option label="低" value="low" />
-                  <el-option label="中" value="medium" />
-                  <el-option label="高" value="high" />
-                  <el-option label="紧急" value="critical" />
+              <el-form-item :label="$t('excelImport.defaultPriority')">
+                <el-select v-model="importOptions.defaultPriority" :placeholder="$t('excelImport.selectDefaultPriority')">
+                  <el-option :label="$t('common.low')" value="low" />
+                  <el-option :label="$t('common.medium')" value="medium" />
+                  <el-option :label="$t('common.high')" value="high" />
+                  <el-option :label="$t('common.critical')" value="critical" />
                 </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="默认分类">
+              <el-form-item :label="$t('excelImport.defaultCategory')">
                 <el-cascader
                   v-model="selectedCategoryId"
                   :options="categoryOptions"
                   :props="cascaderProps"
-                  placeholder="选择默认分类"
+                  :placeholder="$t('excelImport.selectDefaultCategory')"
                   clearable
                   filterable
                   :loading="loadingCategories"
@@ -146,11 +146,11 @@
         <div class="action-buttons">
           <el-button type="primary" @click="startImport" :loading="starting">
             <el-icon><Upload /></el-icon>
-            开始导入
+            {{ $t('excelImport.startImport') }}
           </el-button>
           <el-button @click="clearFile">
             <el-icon><Delete /></el-icon>
-            清除文件
+            {{ $t('excelImport.clearFile') }}
           </el-button>
         </div>
       </div>
@@ -159,8 +159,8 @@
     <!-- 正在运行任务提示 -->
     <el-card v-if="hasRunningTask && !currentTask" class="warning-card">
       <el-alert
-        title="有导入任务正在进行中"
-        description="系统同时只能运行一个导入任务，请等待当前任务完成后再试"
+        :title="$t('excelImport.taskInProgress')"
+        :description="$t('excelImport.taskInProgressDescription')"
         type="warning"
         show-icon
         :closable="false"
@@ -171,7 +171,7 @@
     <el-card v-if="currentTask" class="progress-card">
       <template #header>
         <div class="task-header">
-          <span>导入任务: {{ currentTask.name }}</span>
+          <span>{{ $t('excelImport.importTask') }}: {{ currentTask.name }}</span>
           <el-tag :type="getStatusTagType(currentTask.status)">
             {{ getStatusText(currentTask.status) }}
           </el-tag>
@@ -181,28 +181,28 @@
       <!-- 总体进度 -->
       <div class="progress-section">
         <div class="progress-info">
-          <h4>总体进度</h4>
+          <h4>{{ $t('excelImport.overallProgress') }}</h4>
           <el-progress 
             :percentage="currentTask.progress_percentage" 
             :status="getProgressStatus(currentTask.status)"
             :stroke-width="20"
           />
           <div class="progress-text">
-            {{ currentTask.processed_rows }} / {{ currentTask.total_rows }} 行
+            {{ currentTask.processed_rows }} / {{ currentTask.total_rows }} {{ $t('excelImport.rows') }}
             ({{ Math.round(currentTask.progress_percentage) }}%)
           </div>
         </div>
 
         <!-- 批次进度 -->
         <div class="batch-info">
-          <h4>批次进度</h4>
+          <h4>{{ $t('excelImport.batchProgress') }}</h4>
           <el-progress 
             :percentage="getBatchProgress" 
             :stroke-width="15"
             :show-text="false"
           />
           <div class="batch-text">
-            批次 {{ currentTask.current_batch }} / {{ currentTask.total_batches }}
+            {{ $t('excelImport.batch') }} {{ currentTask.current_batch }} / {{ currentTask.total_batches }}
           </div>
         </div>
       </div>
@@ -213,25 +213,25 @@
           <el-col :span="6">
             <div class="stat-item success">
               <div class="stat-value">{{ currentTask.success_rows }}</div>
-              <div class="stat-label">成功导入</div>
+              <div class="stat-label">{{ $t('excelImport.successImport') }}</div>
             </div>
           </el-col>
           <el-col :span="6">
             <div class="stat-item error">
               <div class="stat-value">{{ currentTask.failed_rows }}</div>
-              <div class="stat-label">导入失败</div>
+              <div class="stat-label">{{ $t('excelImport.failedImport') }}</div>
             </div>
           </el-col>
           <el-col :span="6">
             <div class="stat-item">
               <div class="stat-value">{{ currentTask.total_rows }}</div>
-              <div class="stat-label">总行数</div>
+              <div class="stat-label">{{ $t('excelImport.totalRows') }}</div>
             </div>
           </el-col>
           <el-col :span="6">
             <div class="stat-item">
               <div class="stat-value">{{ batchSize }}</div>
-              <div class="stat-label">批次大小</div>
+              <div class="stat-label">{{ $t('excelImport.batchSize') }}</div>
             </div>
           </el-col>
         </el-row>
@@ -239,7 +239,7 @@
 
       <!-- 错误信息 -->
       <div v-if="errorMessages.length > 0" class="error-section">
-        <h4>最近错误</h4>
+        <h4>{{ $t('excelImport.recentErrors') }}</h4>
         <div class="error-messages">
           <div v-for="(error, index) in errorMessages" :key="index" class="error-item">
             <el-icon><Warning /></el-icon>
@@ -257,7 +257,7 @@
           :loading="cancelling"
         >
           <el-icon><Close /></el-icon>
-          取消任务
+          {{ $t('excelImport.cancelTask') }}
         </el-button>
         <el-button 
           v-if="currentTask.status === 'completed'" 
@@ -265,11 +265,11 @@
           @click="viewResults"
         >
           <el-icon><View /></el-icon>
-          查看结果
+          {{ $t('excelImport.viewResults') }}
         </el-button>
         <el-button @click="refreshTask">
           <el-icon><Refresh /></el-icon>
-          刷新状态
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
     </el-card>
@@ -278,36 +278,36 @@
     <el-card class="history-card">
       <template #header>
         <div class="history-header">
-          <span>导入历史</span>
+          <span>{{ $t('excelImport.importHistory') }}</span>
           <el-button type="primary" text @click="loadTasks">
             <el-icon><Refresh /></el-icon>
-            刷新
+            {{ $t('common.refresh') }}
           </el-button>
         </div>
       </template>
 
       <el-table :data="taskHistory" v-loading="loadingHistory">
-        <el-table-column prop="name" label="任务名称" />
-        <el-table-column prop="file_name" label="文件名" />
-        <el-table-column prop="total_rows" label="总行数" width="100" />
-        <el-table-column prop="success_rows" label="成功" width="80" />
-        <el-table-column prop="failed_rows" label="失败" width="80" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="name" :label="$t('excelImport.taskName')" />
+        <el-table-column prop="file_name" :label="$t('excelImport.fileName')" />
+        <el-table-column prop="total_rows" :label="$t('excelImport.totalRows')" width="100" />
+        <el-table-column prop="success_rows" :label="$t('common.success')" width="80" />
+        <el-table-column prop="failed_rows" :label="$t('common.failed')" width="80" />
+        <el-table-column prop="status" :label="$t('common.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
+        <el-table-column prop="created_at" :label="$t('common.created_at')" width="180">
           <template #default="{ row }">
             {{ formatDateTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column :label="$t('common.operation')" width="150">
           <template #default="{ row }">
             <el-button type="primary" text @click="viewTaskDetail(row)">
-              查看详情
+              {{ $t('excelImport.viewDetails') }}
             </el-button>
           </template>
         </el-table-column>
@@ -318,6 +318,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   UploadFilled, 
@@ -329,6 +330,8 @@ import {
   Refresh,
   Download 
 } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
 
 // 导入API服务
 import { importTaskApi, categoryApi } from '@/services/api'

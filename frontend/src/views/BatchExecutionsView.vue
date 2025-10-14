@@ -1,18 +1,18 @@
 <template>
   <div class="batch-executions">
     <div class="page-header">
-      <h2>批量执行任务</h2>
+      <h2>{{ $t('batchExecution.title') }}</h2>
       <div class="header-actions">
         <el-tag 
           :type="websocketService.isConnected() ? 'success' : 'danger'"
           size="small"
           style="margin-right: 10px;"
         >
-          {{ websocketService.isConnected() ? '实时连接' : '连接断开' }}
+          {{ websocketService.isConnected() ? $t('batchExecution.realtimeConnection') : $t('batchExecution.connectionDisconnected') }}
         </el-tag>
         <el-button type="primary" @click="refreshBatchExecutions">
           <el-icon><Refresh /></el-icon>
-          刷新
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
     </div>
@@ -23,15 +23,15 @@
         :data="batchExecutions"
         style="width: 100%"
       >
-        <el-table-column prop="name" label="任务名称" min-width="200" />
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="name" :label="$t('batchExecution.taskName')" min-width="200" />
+        <el-table-column prop="status" :label="$t('common.status')" width="120">
           <template #default="{ row }">
             <el-tag :type="getBatchStatusType(row.status)">
               {{ getBatchStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="进度" width="150">
+        <el-table-column :label="$t('batchExecution.progress')" width="150">
           <template #default="{ row }">
             <el-progress
               :percentage="calculateProgress(row)"
@@ -40,35 +40,35 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="统计信息" width="200">
+        <el-table-column :label="$t('batchExecution.statistics')" width="200">
           <template #default="{ row }">
             <div class="stats-info">
               <span class="stat-item">
                 <el-tag type="success">{{ row.success_count }}</el-tag>
-                <span>成功</span>
+                <span>{{ $t('common.success') }}</span>
               </span>
               <span class="stat-item">
                 <el-tag type="danger">{{ row.failed_count }}</el-tag>
-                <span>失败</span>
+                <span>{{ $t('common.failed') }}</span>
               </span>
               <span class="stat-item">
                 <el-tag type="info">{{ row.total_count }}</el-tag>
-                <span>总计</span>
+                <span>{{ $t('common.total') }}</span>
               </span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="started_at" label="开始时间" width="180">
+        <el-table-column prop="started_at" :label="$t('batchExecution.startTime')" width="180">
           <template #default="{ row }">
             {{ formatDate(row.started_at) }}
           </template>
         </el-table-column>
-        <el-table-column prop="completed_at" label="完成时间" width="180">
+        <el-table-column prop="completed_at" :label="$t('batchExecution.completeTime')" width="180">
           <template #default="{ row }">
             {{ row.completed_at ? formatDate(row.completed_at) : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column :label="$t('common.operation')" width="200" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <!-- 执行按钮 - 只在pending状态显示 -->
@@ -80,7 +80,7 @@
                 :loading="(row as any)[`starting_${row.id}`]"
               >
                 <el-icon><VideoPlay /></el-icon>
-                执行
+                {{ $t('batchExecution.execute') }}
               </el-button>
               
               <!-- 停止按钮 - 只在running状态显示 -->
@@ -92,12 +92,12 @@
                 :loading="(row as any)[`stopping_${row.id}`]"
               >
                 <el-icon><VideoPause /></el-icon>
-                停止
+                {{ $t('batchExecution.stop') }}
               </el-button>
               
               <!-- 查看详情按钮 -->
               <el-button size="small" type="primary" @click="viewBatchExecution(row)">
-                查看详情
+                {{ $t('batchExecution.viewDetails') }}
               </el-button>
             </div>
           </template>
@@ -202,11 +202,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, VideoPlay, VideoPause } from '@element-plus/icons-vue'
 import { batchExecutionApi } from '@/services/api'
 import { websocketService } from '@/services/websocket'
 import type { BatchExecution } from '@/types/api'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const loading = ref(false)

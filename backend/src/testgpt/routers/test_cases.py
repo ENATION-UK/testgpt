@@ -14,6 +14,7 @@ import json
 from ..database import get_db, TestCase
 from ..models import TestCaseCreate, TestCaseUpdate, TestCaseResponse
 from ..services.excel_service import ExcelService
+from ..constants.error_codes import *
 
 router = APIRouter(prefix="/test-cases", tags=["测试用例管理"])
 
@@ -78,7 +79,7 @@ async def get_test_case(test_case_id: int, db: Session = Depends(get_db)):
         TestCase.is_deleted == False
     ).first()
     if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
+        raise HTTPException(status_code=404, detail={"error_code": TEST_CASE_NOT_FOUND})
     return test_case
 
 

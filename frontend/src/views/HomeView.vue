@@ -5,14 +5,14 @@
         <el-card class="welcome-card">
           <template #header>
             <div class="card-header">
-              <h2>欢迎使用 TestGPT</h2>
+              <h2>{{ $t('home.title') }}</h2>
             </div>
           </template>
           <div class="welcome-content">
-            <p>基于Browser Use的智能Web自动化测试工具，支持语义化测试用例编写和详细的测试结果记录。</p>
+            <p>{{ $t('home.description') }}</p>
             <el-button type="primary" @click="$router.push('/test-cases')">
               <el-icon><Plus /></el-icon>
-              创建测试用例
+              {{ $t('home.createTestCase') }}
             </el-button>
           </div>
         </el-card>
@@ -26,7 +26,7 @@
             <el-icon class="stat-icon" color="#409EFF"><Document /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ statistics.total_test_cases }}</div>
-              <div class="stat-label">测试用例</div>
+              <div class="stat-label">{{ $t('home.testCases') }}</div>
             </div>
           </div>
         </el-card>
@@ -38,7 +38,7 @@
             <el-icon class="stat-icon" color="#67C23A"><VideoPlay /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ statistics.total_executions }}</div>
-              <div class="stat-label">执行次数</div>
+              <div class="stat-label">{{ $t('home.executions') }}</div>
             </div>
           </div>
         </el-card>
@@ -50,7 +50,7 @@
             <el-icon class="stat-icon" color="#E6A23C"><TrendCharts /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ statistics.success_rate }}%</div>
-              <div class="stat-label">成功率</div>
+              <div class="stat-label">{{ $t('home.successRate') }}</div>
             </div>
           </div>
         </el-card>
@@ -62,7 +62,7 @@
             <el-icon class="stat-icon" color="#F56C6C"><Clock /></el-icon>
             <div class="stat-info">
               <div class="stat-number">{{ formatDuration(statistics.average_duration) }}</div>
-              <div class="stat-label">平均耗时</div>
+              <div class="stat-label">{{ $t('home.averageDuration') }}</div>
             </div>
           </div>
         </el-card>
@@ -74,11 +74,11 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <h3>最近执行记录</h3>
+              <h3>{{ $t('home.recentExecutions') }}</h3>
             </div>
           </template>
           <div v-if="statistics.recent_executions.length === 0" class="empty-state">
-            <el-empty description="暂无执行记录" />
+            <el-empty :description="$t('home.noExecutionRecords')" />
           </div>
           <div v-else class="execution-list">
             <div 
@@ -107,21 +107,21 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <h3>快速操作</h3>
+              <h3>{{ $t('home.quickActions') }}</h3>
             </div>
           </template>
           <div class="quick-actions">
             <el-button type="primary" @click="$router.push('/test-cases')" class="action-btn">
               <el-icon><Document /></el-icon>
-              管理测试用例
+              {{ $t('home.manageTestCases') }}
             </el-button>
             <el-button type="success" @click="$router.push('/executions')" class="action-btn">
               <el-icon><VideoPlay /></el-icon>
-              查看执行记录
+              {{ $t('home.viewExecutions') }}
             </el-button>
             <el-button type="warning" @click="$router.push('/statistics')" class="action-btn">
               <el-icon><TrendCharts /></el-icon>
-              查看统计信息
+              {{ $t('home.viewStatistics') }}
             </el-button>
           </div>
         </el-card>
@@ -132,9 +132,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Plus, Document, VideoPlay, TrendCharts, Clock } from '@element-plus/icons-vue'
 import { statisticsApi } from '@/services/api'
 import type { Statistics } from '@/types/api'
+
+const { t } = useI18n()
 
 const statistics = ref<Statistics>({
   total_test_cases: 0,

@@ -1,14 +1,14 @@
 <template>
   <div class="batch-execution-detail">
     <div class="page-header">
-      <el-page-header @back="goBack" :content="`批量执行任务详情 - ${batchExecution?.name || ''}`" />
+      <el-page-header @back="goBack" :content="`${$t('batchExecution.detail')} - ${batchExecution?.name || ''}`" />
     </div>
 
     <div v-loading="loading">
       <el-card v-if="batchExecution" class="batch-info">
         <template #header>
           <div class="card-header">
-            <span>任务信息</span>
+            <span>{{ $t('batchExecution.taskInfo') }}</span>
             <el-tag :type="getBatchStatusType(batchExecution.status)">
               {{ getBatchStatusLabel(batchExecution.status) }}
             </el-tag>
@@ -129,10 +129,13 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { batchExecutionApi } from '@/services/api'
 import type { BatchExecution, BatchExecutionTestCase } from '@/types/api'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()

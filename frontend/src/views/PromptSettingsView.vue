@@ -1,21 +1,21 @@
 <template>
   <div class="prompt-settings">
     <div class="page-header">
-      <h2>提示词设置</h2>
-      <p>配置自定义提示词，将拼合进 Agent 的测试系统提示词中</p>
+      <h2>{{ $t('settings.prompt.title') }}</h2>
+      <p>{{ $t('settings.prompt.description') }}</p>
     </div>
 
     <el-card class="settings-card">
       <template #header>
         <div class="card-header">
-          <span>提示词配置</span>
+          <span>{{ $t('settings.prompt.promptConfig') }}</span>
           <div class="header-actions">
             <el-button 
               type="success" 
               @click="saveConfig"
               :loading="saving"
             >
-              保存配置
+              {{ $t('settings.prompt.saveConfig') }}
             </el-button>
           </div>
         </div>
@@ -32,14 +32,14 @@
             v-model="form.custom_prompt" 
             type="textarea" 
             :rows="18"
-            placeholder="请输入自定义提示词，这些内容将拼合进 Agent 的测试系统提示词中"
+            :placeholder="$t('settings.prompt.placeholder.customPrompt')"
             clearable
             show-word-limit
             maxlength="2000"
           />
           <div class="form-tip">
             <el-icon><InfoFilled /></el-icon>
-            <span>自定义提示词将追加到默认的系统提示词后面，用于定制 Agent 的行为</span>
+            <span>{{ $t('settings.prompt.tips.customPrompt') }}</span>
           </div>
         </el-form-item>
       </el-form>
@@ -48,22 +48,22 @@
     <!-- 配置状态卡片 -->
     <el-card class="status-card" v-if="configStatus">
       <template #header>
-        <span>配置状态</span>
+        <span>{{ $t('settings.prompt.configStatus') }}</span>
       </template>
       
       <div class="status-content">
         <el-alert
-          :title="configStatus.is_valid ? '配置有效' : '配置无效'"
+          :title="configStatus.is_valid ? $t('settings.prompt.status.valid') : $t('settings.prompt.status.invalid')"
           :type="configStatus.is_valid ? 'success' : 'error'"
-          :description="configStatus.is_valid ? '提示词配置已正确设置' : '请检查提示词配置'"
+          :description="configStatus.is_valid ? $t('settings.prompt.status.validDescription') : $t('settings.prompt.status.invalidDescription')"
           show-icon
         />
         
         <div class="status-details" v-if="configStatus.is_valid">
           <el-descriptions :column="1" border>
-            <el-descriptions-item label="自定义提示词">
+            <el-descriptions-item :label="$t('settings.prompt.customPrompt')">
               <div class="prompt-preview">
-                {{ configStatus.custom_prompt || '（未设置）' }}
+                {{ configStatus.custom_prompt || $t('settings.prompt.status.notSet') }}
               </div>
             </el-descriptions-item>
           </el-descriptions>
@@ -74,37 +74,30 @@
     <!-- 提示词说明卡片 -->
     <el-card class="info-card">
       <template #header>
-        <span>使用说明</span>
+        <span>{{ $t('settings.prompt.usageInstructions') }}</span>
       </template>
       
       <div class="info-content">
-        <h4>提示词的作用</h4>
-        <p>自定义提示词将拼合进 Agent 的测试系统提示词中，用于：</p>
+        <h4>{{ $t('settings.prompt.usage.title') }}</h4>
+        <p>{{ $t('settings.prompt.usage.description') }}</p>
         <ul>
-          <li>通用、常用的测试步骤说明</li>
-          <li>定制 Agent 的行为和决策逻辑</li>
-          <li>添加特定的测试要求或验证标准</li>
-          <li>调整 Agent 的响应风格和详细程度</li>
-          <li>增加特定业务场景的测试指导</li>
+          <li>{{ $t('settings.prompt.usage.purposes.0') }}</li>
+          <li>{{ $t('settings.prompt.usage.purposes.1') }}</li>
+          <li>{{ $t('settings.prompt.usage.purposes.2') }}</li>
+          <li>{{ $t('settings.prompt.usage.purposes.3') }}</li>
+          <li>{{ $t('settings.prompt.usage.purposes.4') }}</li>
         </ul>
         
-        <h4>示例提示词</h4>
+        <h4>{{ $t('settings.prompt.usage.examples.title') }}</h4>
         <div class="example-prompt">
-          <p><strong>通用、常用的测试步骤说明：</strong></p>
-          <pre>
-# 请记住以下通用操作
-## 登录后台
-打开网址:https://www.demo.com/login
-输入用户名user
-密码password
-点击登录## 重要:如有需要以上通用操作请直接应用在具体用例中
-          </pre>
+          <p><strong>{{ $t('settings.prompt.usage.examples.commonSteps.title') }}</strong></p>
+          <pre>{{ $t('settings.prompt.usage.examples.commonSteps.content') }}</pre>
           
-          <p><strong>特定业务要求：</strong></p>
-          <pre>在测试过程中，请特别关注用户体验相关的细节，如页面加载速度、交互响应时间等。</pre>
+          <p><strong>{{ $t('settings.prompt.usage.examples.businessRequirements.title') }}</strong></p>
+          <pre>{{ $t('settings.prompt.usage.examples.businessRequirements.content') }}</pre>
           
-          <p><strong>错误处理：</strong></p>
-          <pre>如果遇到网络错误或页面加载失败，请尝试重新加载页面，最多重试3次。</pre>
+          <p><strong>{{ $t('settings.prompt.usage.examples.errorHandling.title') }}</strong></p>
+          <pre>{{ $t('settings.prompt.usage.examples.errorHandling.content') }}</pre>
         </div>
       </div>
     </el-card>

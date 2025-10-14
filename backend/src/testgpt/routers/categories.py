@@ -8,6 +8,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..models import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryTreeResponse
 from ..services.category_service import CategoryService
+from ..constants.error_codes import *
 
 router = APIRouter(prefix="/categories", tags=["分类管理"])
 
@@ -21,9 +22,9 @@ def create_category(
         category_service = CategoryService(db)
         return category_service.create_category(category_data)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail={"error_code": VALIDATION_ERROR, "message": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"创建分类失败: {str(e)}")
+        raise HTTPException(status_code=500, detail={"error_code": CATEGORY_CREATE_FAILED})
 
 @router.get("/", response_model=List[CategoryResponse])
 def get_categories(

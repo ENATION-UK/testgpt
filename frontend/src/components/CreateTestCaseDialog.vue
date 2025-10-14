@@ -1,7 +1,7 @@
 <template>
     <el-dialog
       v-model="visible"
-      title="创建测试用例"
+      :title="$t('testCase.create')"
       width="600px"
       :before-close="handleClose"
     >
@@ -11,69 +11,69 @@
         :rules="rules"
         label-width="100px"
       >
-        <el-form-item label="名称" prop="name">
+        <el-form-item :label="$t('common.name')" prop="name">
           <el-input
             v-model="form.name"
-            placeholder="请输入测试用例名称"
+            :placeholder="$t('testCase.placeholder.name')"
             maxlength="100"
             show-word-limit
           />
         </el-form-item>
   
-        <el-form-item label="操作步骤" prop="task_content">
+        <el-form-item :label="$t('testCase.taskContent')" prop="task_content">
           <el-input
             v-model="form.task_content"
             type="textarea"
             :rows="4"
-            placeholder="请输入具体的操作步骤，例如：1. 打开网站 2. 点击登录按钮 3. 输入用户名密码等"
+            :placeholder="$t('testCase.placeholder.taskContent')"
             maxlength="1000"
             show-word-limit
           />
         </el-form-item>
 
-        <el-form-item label="预期结果" prop="expected_result">
+        <el-form-item :label="$t('testCase.expectedResult')" prop="expected_result">
           <el-input
             v-model="form.expected_result"
             type="textarea"
             :rows="3"
-            placeholder="请输入预期测试结果"
+            :placeholder="$t('testCase.placeholder.expectedResult')"
             maxlength="500"
             show-word-limit
           />
         </el-form-item>
   
-        <el-form-item label="分类" prop="category_id">
+        <el-form-item :label="$t('common.category')" prop="category_id">
           <el-cascader
             v-model="form.category_id"
             :options="categoryOptions"
             :props="cascaderProps"
-            placeholder="请选择分类"
+            :placeholder="$t('testCase.placeholder.category')"
             clearable
             style="width: 100%"
           />
         </el-form-item>
   
-        <el-form-item label="优先级" prop="priority">
-          <el-select v-model="form.priority" placeholder="请选择优先级" style="width: 100%">
-            <el-option label="低" value="low" />
-            <el-option label="中" value="medium" />
-            <el-option label="高" value="high" />
-            <el-option label="紧急" value="critical" />
+        <el-form-item :label="$t('common.priority')" prop="priority">
+          <el-select v-model="form.priority" :placeholder="$t('testCase.placeholder.priority')" style="width: 100%">
+            <el-option :label="$t('common.low')" value="low" />
+            <el-option :label="$t('common.medium')" value="medium" />
+            <el-option :label="$t('common.high')" value="high" />
+            <el-option :label="$t('common.critical')" value="critical" />
           </el-select>
         </el-form-item>
   
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="form.status" placeholder="请选择状态" style="width: 100%">
-            <el-option label="激活" value="active" />
-            <el-option label="非激活" value="inactive" />
-            <el-option label="草稿" value="draft" />
+        <el-form-item :label="$t('common.status')" prop="status">
+          <el-select v-model="form.status" :placeholder="$t('testCase.placeholder.status')" style="width: 100%">
+            <el-option :label="$t('common.active')" value="active" />
+            <el-option :label="$t('common.inactive')" value="inactive" />
+            <el-option :label="$t('common.draft')" value="draft" />
           </el-select>
         </el-form-item>
   
-        <el-form-item label="标签">
+        <el-form-item :label="$t('testCase.tags')">
           <el-input
             v-model="tagInput"
-            placeholder="输入标签后按回车添加"
+            :placeholder="$t('testCase.placeholder.tags')"
             @keyup.enter="addTag"
             style="margin-bottom: 10px"
           />
@@ -93,9 +93,9 @@
   
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="handleClose">取消</el-button>
+          <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="handleSubmit" :loading="loading">
-            创建
+            {{ $t('common.create') }}
           </el-button>
         </span>
       </template>
@@ -104,9 +104,12 @@
   
   <script setup lang="ts">
   import { ref, reactive, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { testCaseApi, categoryApi } from '@/services/api'
 import type { CreateTestCaseRequest, Category } from '@/types/api'
+
+const { t } = useI18n()
   
   interface Props {
     modelValue: boolean

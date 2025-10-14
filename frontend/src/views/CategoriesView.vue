@@ -1,11 +1,11 @@
 <template>
   <div class="categories">
     <div class="page-header">
-      <h2>分类管理</h2>
+      <h2>{{ $t('category.title') }}</h2>
       <div class="header-actions">
         <el-button type="primary" @click="showCreateDialog = true">
           <el-icon><Plus /></el-icon>
-          创建分类
+          {{ $t('category.create') }}
         </el-button>
       </div>
     </div>
@@ -26,21 +26,21 @@
               <div class="category-info">
                 <span class="category-name">{{ data.name }}</span>
                 <el-tag v-if="data.test_case_count > 0" size="small" type="info">
-                  {{ data.test_case_count }} 个用例
+                  {{ data.test_case_count }}{{ $t('category.testCaseCount') }}
                 </el-tag>
                 <el-tag v-if="!data.is_active" size="small" type="warning">
-                  非激活
+                  {{ $t('common.inactive') }}
                 </el-tag>
               </div>
               <div class="category-actions">
                 <el-button size="small" type="primary" @click.stop="editCategory(data)">
-                  编辑
+                  {{ $t('common.edit') }}
                 </el-button>
                 <el-button size="small" type="success" @click.stop="addSubCategory(data)">
-                  添加子分类
+                  {{ $t('category.addSubCategory') }}
                 </el-button>
                 <el-button size="small" type="danger" @click.stop="deleteCategory(data)">
-                  删除
+                  {{ $t('common.delete') }}
                 </el-button>
               </div>
             </div>
@@ -52,7 +52,7 @@
     <!-- 创建/编辑分类对话框 -->
     <el-dialog
       v-model="showCreateDialog"
-      :title="editingCategory ? '编辑分类' : '创建分类'"
+      :title="editingCategory ? $t('category.edit') : $t('category.create')"
       width="500px"
     >
       <el-form
@@ -61,23 +61,23 @@
         :rules="categoryRules"
         label-width="100px"
       >
-        <el-form-item label="分类名称" prop="name">
-          <el-input v-model="categoryForm.name" placeholder="请输入分类名称" />
+        <el-form-item :label="$t('category.name')" prop="name">
+          <el-input v-model="categoryForm.name" :placeholder="$t('category.placeholder.name')" />
         </el-form-item>
         
-        <el-form-item label="分类描述" prop="description">
+        <el-form-item :label="$t('category.description')" prop="description">
           <el-input
             v-model="categoryForm.description"
             type="textarea"
             :rows="3"
-            placeholder="请输入分类描述"
+            :placeholder="$t('category.placeholder.description')"
           />
         </el-form-item>
         
-        <el-form-item label="父分类" prop="parent_id">
+        <el-form-item :label="$t('category.parentId')" prop="parent_id">
           <el-select
             v-model="categoryForm.parent_id"
-            placeholder="请选择父分类（可选）"
+            :placeholder="$t('category.placeholder.parent')"
             clearable
             style="width: 100%"
           >
@@ -90,7 +90,7 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="排序" prop="sort_order">
+        <el-form-item :label="$t('category.sortOrder')" prop="sort_order">
           <el-input-number
             v-model="categoryForm.sort_order"
             :min="0"
@@ -99,16 +99,16 @@
           />
         </el-form-item>
         
-        <el-form-item v-if="editingCategory" label="状态" prop="is_active">
+        <el-form-item v-if="editingCategory" :label="$t('category.isActive')" prop="is_active">
           <el-switch v-model="categoryForm.is_active" />
         </el-form-item>
       </el-form>
       
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showCreateDialog = false">取消</el-button>
+          <el-button @click="showCreateDialog = false">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="saveCategory" :loading="saving">
-            {{ editingCategory ? '更新' : '创建' }}
+            {{ editingCategory ? $t('common.update') : $t('common.create') }}
           </el-button>
         </span>
       </template>
@@ -118,10 +118,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { categoryApi } from '@/services/api'
 import type { Category, CategoryCreate, CategoryUpdate } from '@/types/api'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -143,11 +146,11 @@ const categoryForm = ref<CategoryCreate & { is_active?: boolean }>({
 // 表单验证规则
 const categoryRules: FormRules = {
   name: [
-    { required: true, message: '请输入分类名称', trigger: 'blur' },
-    { min: 1, max: 100, message: '分类名称长度在 1 到 100 个字符', trigger: 'blur' }
+    { required: true, message: t('category.validation.nameRequired'), trigger: 'blur' },
+    { min: 1, max: 100, message: t('category.validation.nameLength'), trigger: 'blur' }
   ],
   description: [
-    { max: 500, message: '分类描述长度不能超过 500 个字符', trigger: 'blur' }
+    { max: 500, message: t('category.validation.descriptionLength'), trigger: 'blur' }
   ]
 }
 
@@ -195,7 +198,7 @@ const loadCategoryTree = async () => {
   try {
     categoryTree.value = await categoryApi.getTree(false)
   } catch (error) {
-    ElMessage.error('加载分类树失败')
+    ElMessage.error(t('category.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -236,21 +239,21 @@ const addSubCategory = (parentCategory: Category) => {
 const deleteCategory = async (category: Category) => {
   try {
     const message = category.children && category.children.length > 0
-      ? `确定要删除分类 "${category.name}" 及其所有子分类吗？`
-      : `确定要删除分类 "${category.name}" 吗？`
+      ? t('category.messages.confirmDeleteWithChildren', { name: category.name })
+      : t('category.messages.confirmDelete', { name: category.name })
       
-    await ElMessageBox.confirm(message, '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(message, t('common.confirm'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     })
     
     await categoryApi.delete(category.id, true)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('category.messages.deleteSuccess'))
     loadCategoryTree()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+      ElMessage.error(t('category.messages.deleteFailed'))
     }
   }
 }
@@ -273,7 +276,7 @@ const saveCategory = async () => {
         is_active: categoryForm.value.is_active
       }
       await categoryApi.update(editingCategory.value.id, updateData)
-      ElMessage.success('分类更新成功')
+      ElMessage.success(t('category.messages.updateSuccess'))
     } else {
       // 创建分类
       const createData: CategoryCreate = {
@@ -283,7 +286,7 @@ const saveCategory = async () => {
         sort_order: categoryForm.value.sort_order
       }
       await categoryApi.create(createData)
-      ElMessage.success('分类创建成功')
+      ElMessage.success(t('category.messages.createSuccess'))
     }
     
     showCreateDialog.value = false
@@ -291,7 +294,7 @@ const saveCategory = async () => {
     loadCategoryTree()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(editingCategory.value ? '更新失败' : '创建失败')
+      ElMessage.error(editingCategory.value ? t('category.messages.updateFailed') : t('category.messages.createFailed'))
     }
   } finally {
     saving.value = false

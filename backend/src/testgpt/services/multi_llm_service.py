@@ -89,7 +89,7 @@ class MultiLLMService:
             providers=[
                 ModelProviderConfig(
                     provider_id="deepseek_default",
-                    provider_name="DeepSeek默认配置",
+                    provider_name="DeepSeek",
                     model_type="deepseek",
                     base_url="https://api.deepseek.com/v1",
                     model="deepseek-chat",
